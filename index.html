@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linkage Solver</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="container">
+        <div id="sidebar">
+            <h1>Linkage Solver</h1>
+            
+            <div class="control-group">
+                <h3>Settings</h3>
+                <label>
+                    Canvas Width (units):
+                    <input type="number" id="canvas-units-width" value="100">
+                </label>
+            </div>
+
+            <div class="control-group">
+                <h3>Tools</h3>
+                <button id="btn-select" class="active">Select / Move</button>
+                <button id="btn-draw-path">Draw Path</button>
+                <button id="btn-add-start-zone">Add Start Zone</button>
+                <button id="btn-add-pass-zone">Add Pass Zone</button>
+                <div class="manual-input">
+                    <input type="number" id="zone-w" placeholder="W" style="width: 45%;">
+                    <input type="number" id="zone-h" placeholder="H" style="width: 45%;">
+                    <button id="btn-add-manual-zone" style="margin-top: 5px;">Add Zone (Center)</button>
+                </div>
+                <button id="btn-clear">Clear All</button>
+            </div>
+
+            <div class="control-group">
+                <h3>Solver</h3>
+                <button id="btn-solve">Solve Linkage</button>
+                <div id="status">Ready</div>
+            </div>
+
+            <div class="control-group">
+                <h3>Result</h3>
+                <input type="range" id="simulation-slider" min="0" max="360" value="0" disabled>
+                <button id="btn-play" disabled>Play</button>
+            </div>
+            
+            <div id="instructions">
+                <p><strong>Instructions:</strong></p>
+                <ul>
+                    <li>Draw a path on the canvas.</li>
+                    <li>Add "Start Zones" where the fixed pivots can be placed.</li>
+                    <li>Add "Pass Zones" that the mechanism must pass through (optional).</li>
+                    <li>Click Solve.</li>
+                </ul>
+            </div>
+        </div>
+        <div id="canvas-wrapper">
+            <canvas id="main-canvas"></canvas>
+        </div>
+    </div>
+    <script src="geometry.js"></script>
+    <script src="solver.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
