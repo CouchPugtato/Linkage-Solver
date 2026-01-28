@@ -13,7 +13,8 @@ const state = {
     solvedLinkage: null,
     simulationAngle: 0,
     isPlaying: false,
-    animationFrameId: null
+    animationFrameId: null,
+    selectedZoneIndex: null
 };
 
 function resizeCanvas() {
@@ -60,8 +61,34 @@ document.getElementById('btn-clear').addEventListener('click', () => {
     state.path = [];
     state.zones = [];
     state.solvedLinkage = null;
+    state.selectedZoneIndex = null;
+    updateDeleteButtonState();
     draw();
 });
+
+document.getElementById('btn-clear-path').addEventListener('click', () => {
+    state.path = [];
+    draw();
+});
+
+document.getElementById('btn-delete-zone').addEventListener('click', () => {
+    if (state.selectedZoneIndex !== null) {
+        state.zones.splice(state.selectedZoneIndex, 1);
+        state.selectedZoneIndex = null;
+        updateDeleteButtonState();
+        draw();
+    }
+});
+
+function updateDeleteButtonState() {
+    const btn = document.getElementById('btn-delete-zone');
+    btn.disabled = state.selectedZoneIndex === null;
+    if (btn.disabled) {
+        btn.textContent = "Delete Selected Zone";
+    } else {
+        btn.textContent = `Delete Zone #${state.selectedZoneIndex + 1}`;
+    }
+}
 
 const statusDiv = document.getElementById('status');
 const btnSolve = document.getElementById('btn-solve');
@@ -136,6 +163,7 @@ canvas.addEventListener('mousedown', (e) => {
     const p = new Point(x, y);
     
     if (state.mode === 'select') {
+        let clickedZone = false;
         for (let i = state.zones.length - 1; i >= 0; i--) {
             if (state.zones[i].contains(p)) {
                 state.draggedZone = {
@@ -143,9 +171,17 @@ canvas.addEventListener('mousedown', (e) => {
                     offsetX: x - state.zones[i].x,
                     offsetY: y - state.zones[i].y
                 };
-                return;
+                state.selectedZoneIndex = i;
+                clickedZone = true;
+                break;
             }
         }
+        if (!clickedZone) {
+            state.selectedZoneIndex = null;
+        }
+        updateDeleteButtonState();
+        draw();
+        if (clickedZone) return;
     } else if (state.mode === 'draw') {
         state.isDrawing = true;
         state.path = [p];
@@ -206,12 +242,21 @@ canvas.addEventListener('mouseup', (e) => {
 function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
-    state.zones.forEach(z => {
+    state.zones.forEach((z, i) => {
         ctx.fillStyle = z.type === 'start' ? 'rgba(0, 255, 0, 0.2)' : 'rgba(0, 0, 255, 0.2)';
         ctx.strokeStyle = z.type === 'start' ? 'green' : 'blue';
+        
+        if (i === state.selectedZoneIndex) {
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = '#FFD700'; // Gold color for selection
+        } else {
+            ctx.lineWidth = 1;
+        }
+
         ctx.fillRect(z.x, z.y, z.w, z.h);
         ctx.strokeRect(z.x, z.y, z.w, z.h);
         
+        ctx.lineWidth = 1; // Reset line width
         ctx.fillStyle = '#000';
         ctx.font = '10px sans-serif';
         const wUnits = (z.w / state.scale).toFixed(1);
@@ -289,3 +334,4 @@ function draw() {
 }
 
 resizeCanvas();
+updateDeleteButtonState();
