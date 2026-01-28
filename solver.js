@@ -18,7 +18,7 @@ class Solver {
 
             const candidate = this.generateCandidate(startZones);
             
-            const error = this.evaluate(candidate, targetPath, passZones);
+            const error = this.evaluate(candidate, targetPath, passZones, startZones);
             
             if (error < this.bestError) {
                 this.bestError = error;
@@ -66,12 +66,32 @@ class Solver {
         return linkage;
     }
 
-    evaluate(linkage, targetPath, passZones) {
+    evaluate(linkage, targetPath, passZones, startZones) {
         const curvePoints = [];
         const step = 5 * (Math.PI / 180);
+        const validZones = [...(startZones || []), ...(passZones || [])];
+
         for (let theta = 0; theta < 2 * Math.PI; theta += step) {
             const sol = linkage.solve(theta);
             if (sol) {
+                if (validZones.length > 0) {
+                    const pointsToCheck = [sol.A, sol.B, sol.P];
+                    let allIn = true;
+                    for (const p of pointsToCheck) {
+                        let inZone = false;
+                        for (const z of validZones) {
+                            if (z.contains(p)) {
+                                inZone = true;
+                                break;
+                            }
+                        }
+                        if (!inZone) {
+                            allIn = false;
+                            break;
+                        }
+                    }
+                    if (!allIn) return Infinity;
+                }
                 curvePoints.push(sol.P);
             }
         }
