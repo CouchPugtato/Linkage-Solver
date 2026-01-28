@@ -19,6 +19,16 @@ class Point {
     mult(scalar) {
         return new Point(this.x * scalar, this.y * scalar);
     }
+
+    distToSegment(v, w) {
+        const l2 = (v.x - w.x)**2 + (v.y - w.y)**2;
+        if (l2 === 0) return this.dist(v);
+        let t = ((this.x - v.x) * (w.x - v.x) + (this.y - v.y) * (w.y - v.y)) / l2;
+        t = Math.max(0, Math.min(1, t));
+        const px = v.x + t * (w.x - v.x);
+        const py = v.y + t * (w.y - v.y);
+        return Math.sqrt((this.x - px)**2 + (this.y - py)**2);
+    }
 }
 
 class Rect {

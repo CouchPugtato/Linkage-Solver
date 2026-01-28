@@ -14,7 +14,8 @@ const state = {
     simulationAngle: 0,
     isPlaying: false,
     animationFrameId: null,
-    selectedZoneIndex: null
+    selectedZoneIndex: null,
+    showLengths: false
 };
 
 function resizeCanvas() {
@@ -117,6 +118,7 @@ btnSolve.addEventListener('click', async () => {
     if (linkage) {
         document.getElementById('simulation-slider').disabled = false;
         document.getElementById('btn-play').disabled = false;
+        document.getElementById('chk-show-lengths').disabled = false;
         draw();
     }
 });
@@ -132,6 +134,11 @@ btnPlay.addEventListener('click', () => {
     state.isPlaying = !state.isPlaying;
     btnPlay.textContent = state.isPlaying ? "Pause" : "Play";
     if (state.isPlaying) animate();
+});
+
+document.getElementById('chk-show-lengths').addEventListener('change', (e) => {
+    state.showLengths = e.target.checked;
+    draw();
 });
 
 function animate() {
@@ -329,6 +336,34 @@ function draw() {
                 ctx.fill();
                 ctx.stroke();
             });
+
+            if (state.showLengths) {
+                ctx.font = '12px sans-serif';
+                ctx.fillStyle = 'black';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+
+                const drawLength = (p1, p2, val) => {
+                    const midX = (p1.x + p2.x) / 2;
+                    const midY = (p1.y + p2.y) / 2;
+                    const len = (val / state.scale).toFixed(1);
+                    
+                    const text = `${len} units`;
+                    const metrics = ctx.measureText(text);
+                    const padding = 2;
+                    ctx.save();
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+                    ctx.fillRect(midX - metrics.width/2 - padding, midY - 6 - padding, metrics.width + padding*2, 12 + padding*2);
+                    ctx.fillStyle = 'black';
+                    ctx.fillText(text, midX, midY);
+                    ctx.restore();
+                };
+
+                drawLength(state.solvedLinkage.p1, sol.A, state.solvedLinkage.l1);
+                drawLength(sol.A, sol.B, state.solvedLinkage.l2);
+                drawLength(state.solvedLinkage.p2, sol.B, state.solvedLinkage.l3);
+                drawLength(state.solvedLinkage.p1, state.solvedLinkage.p2, state.solvedLinkage.l4);
+            }
         }
     }
 }

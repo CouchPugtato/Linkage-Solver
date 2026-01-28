@@ -30,6 +30,8 @@
                     <input type="number" id="zone-h" placeholder="H" style="width: 45%;">
                     <button id="btn-add-manual-zone" style="margin-top: 5px;">Add Zone (Center)</button>
                 </div>
+                <button id="btn-delete-zone">Delete Selected Zone</button>
+                <button id="btn-clear-path">Clear Path</button>
                 <button id="btn-clear">Clear All</button>
             </div>
 
@@ -43,6 +45,9 @@
                 <h3>Result</h3>
                 <input type="range" id="simulation-slider" min="0" max="360" value="0" disabled>
                 <button id="btn-play" disabled>Play</button>
+                <label style="margin-top: 10px; display: flex; align-items: center; gap: 5px;">
+                    <input type="checkbox" id="chk-show-lengths" disabled> Show Lengths
+                </label>
             </div>
         </div>
         <div id="canvas-wrapper">
