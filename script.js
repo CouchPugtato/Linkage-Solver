@@ -15,8 +15,25 @@ const state = {
     isPlaying: false,
     animationFrameId: null,
     selectedZoneIndex: null,
-    showLengths: false
+    showLengths: false,
+    view: { x: 0, y: 0, zoom: 1 },
+    isPanning: false,
+    lastMousePos: null
 };
+
+function toWorld(screenX, screenY) {
+    return {
+        x: (screenX - state.view.x) / state.view.zoom,
+        y: (screenY - state.view.y) / state.view.zoom
+    };
+}
+
+function toScreen(worldX, worldY) {
+    return {
+        x: worldX * state.view.zoom + state.view.x,
+        y: worldY * state.view.zoom + state.view.y
+    };
+}
 
 function resizeCanvas() {
     canvas.width = container.clientWidth;
@@ -161,13 +178,39 @@ function setMode(mode) {
     document.getElementById(`btn-${mode}`).classList.add('active');
 }
 
+canvas.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const rect = canvas.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+
+    const zoomSensitivity = 0.008;
+    const delta = -e.deltaY * zoomSensitivity;
+    const newZoom = Math.max(0.1, Math.min(10, state.view.zoom * (1 + delta)));
+
+    const worldPos = toWorld(mouseX, mouseY);
+    state.view.x = mouseX - worldPos.x * newZoom;
+    state.view.y = mouseY - worldPos.y * newZoom;
+    state.view.zoom = newZoom;
+
+    draw();
+});
+
 let dragStart = null;
 
 canvas.addEventListener('mousedown', (e) => {
     const rect = canvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
-    const p = new Point(x, y);
+    
+    if (e.button === 1 || (e.buttons & 4)) {
+        state.isPanning = true;
+        state.lastMousePos = { x, y };
+        return;
+    }
+
+    const worldPos = toWorld(x, y);
+    const p = new Point(worldPos.x, worldPos.y);
     
     if (state.mode === 'select') {
         let clickedZone = false;
@@ -175,8 +218,8 @@ canvas.addEventListener('mousedown', (e) => {
             if (state.zones[i].contains(p)) {
                 state.draggedZone = {
                     index: i,
-                    offsetX: x - state.zones[i].x,
-                    offsetY: y - state.zones[i].y
+                    offsetX: worldPos.x - state.zones[i].x,
+                    offsetY: worldPos.y - state.zones[i].y
                 };
                 state.selectedZoneIndex = i;
                 clickedZone = true;
@@ -202,12 +245,24 @@ canvas.addEventListener('mousemove', (e) => {
     const rect = canvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
-    const p = new Point(x, y);
+
+    if (state.isPanning && state.lastMousePos) {
+        const dx = x - state.lastMousePos.x;
+        const dy = y - state.lastMousePos.y;
+        state.view.x += dx;
+        state.view.y += dy;
+        state.lastMousePos = { x, y };
+        draw();
+        return;
+    }
+
+    const worldPos = toWorld(x, y);
+    const p = new Point(worldPos.x, worldPos.y);
     
     if (state.draggedZone) {
         const zone = state.zones[state.draggedZone.index];
-        zone.x = x - state.draggedZone.offsetX;
-        zone.y = y - state.draggedZone.offsetY;
+        zone.x = worldPos.x - state.draggedZone.offsetX;
+        zone.y = worldPos.y - state.draggedZone.offsetY;
         draw();
     } else if (state.mode === 'draw' && state.isDrawing) {
         const last = state.path[state.path.length - 1];
@@ -217,8 +272,12 @@ canvas.addEventListener('mousemove', (e) => {
         }
     } else if (dragStart) {
         draw();
+        ctx.save();
+        ctx.translate(state.view.x, state.view.y);
+        ctx.scale(state.view.zoom, state.view.zoom);
         ctx.strokeStyle = '#00f';
-        ctx.strokeRect(dragStart.x, dragStart.y, x - dragStart.x, y - dragStart.y);
+        ctx.strokeRect(dragStart.x, dragStart.y, worldPos.x - dragStart.x, worldPos.y - dragStart.y);
+        ctx.restore();
     }
 });
 
@@ -226,17 +285,25 @@ canvas.addEventListener('mouseup', (e) => {
     const rect = canvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
+
+    if (state.isPanning) {
+        state.isPanning = false;
+        state.lastMousePos = null;
+        return;
+    }
+
+    const worldPos = toWorld(x, y);
     
     if (state.draggedZone) {
         state.draggedZone = null;
     } else if (state.mode === 'draw') {
         state.isDrawing = false;
     } else if (dragStart) {
-        const w = x - dragStart.x;
-        const h = y - dragStart.y;
+        const w = worldPos.x - dragStart.x;
+        const h = worldPos.y - dragStart.y;
         if (Math.abs(w) > 5 && Math.abs(h) > 5) {
-            const rx = w < 0 ? x : dragStart.x;
-            const ry = h < 0 ? y : dragStart.y;
+            const rx = w < 0 ? worldPos.x : dragStart.x;
+            const ry = h < 0 ? worldPos.y : dragStart.y;
             const type = state.mode === 'add-start-zone' ? 'start' : 'pass';
             state.zones.push(new Rect(rx, ry, Math.abs(w), Math.abs(h), type));
         }
@@ -249,32 +316,41 @@ canvas.addEventListener('mouseup', (e) => {
 function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
+    ctx.save();
+    ctx.translate(state.view.x, state.view.y);
+    ctx.scale(state.view.zoom, state.view.zoom);
+
     state.zones.forEach((z, i) => {
         ctx.fillStyle = z.type === 'start' ? 'rgba(0, 255, 0, 0.2)' : 'rgba(0, 0, 255, 0.2)';
         ctx.strokeStyle = z.type === 'start' ? 'green' : 'blue';
         
         if (i === state.selectedZoneIndex) {
-            ctx.lineWidth = 3;
-            ctx.strokeStyle = '#FFD700'; // Gold color for selection
+            ctx.lineWidth = 3 / state.view.zoom;
+            ctx.strokeStyle = '#FFD700';
         } else {
-            ctx.lineWidth = 1;
+            ctx.lineWidth = 1 / state.view.zoom;
         }
 
         ctx.fillRect(z.x, z.y, z.w, z.h);
         ctx.strokeRect(z.x, z.y, z.w, z.h);
         
-        ctx.lineWidth = 1; // Reset line width
+        ctx.lineWidth = 1 / state.view.zoom;
         ctx.fillStyle = '#000';
+        
+        ctx.save();
+        ctx.translate(z.x, z.y);
+        ctx.scale(1/state.view.zoom, 1/state.view.zoom);
         ctx.font = '10px sans-serif';
         const wUnits = (z.w / state.scale).toFixed(1);
         const hUnits = (z.h / state.scale).toFixed(1);
-        ctx.fillText(`${wUnits} x ${hUnits}`, z.x + 5, z.y + 15);
+        ctx.fillText(`${wUnits} x ${hUnits}`, 5, 15);
+        ctx.restore();
     });
     
     if (state.path.length > 0) {
         ctx.beginPath();
         ctx.strokeStyle = 'red';
-        ctx.lineWidth = 2;
+        ctx.lineWidth = 2 / state.view.zoom;
         ctx.moveTo(state.path[0].x, state.path[0].y);
         for (let i = 1; i < state.path.length; i++) {
             ctx.lineTo(state.path[i].x, state.path[i].y);
@@ -287,7 +363,7 @@ function draw() {
         
         ctx.beginPath();
         ctx.strokeStyle = 'rgba(0,0,0,0.1)';
-        ctx.lineWidth = 1;
+        ctx.lineWidth = 1 / state.view.zoom;
         for (let th = 0; th < Math.PI * 2; th += 0.05) {
             const s = state.solvedLinkage.solve(th);
             if (s) {
@@ -299,7 +375,7 @@ function draw() {
         ctx.stroke();
         
         if (sol) {
-            ctx.lineWidth = 3;
+            ctx.lineWidth = 3 / state.view.zoom;
             
             ctx.strokeStyle = 'black';
             ctx.beginPath();
@@ -329,33 +405,37 @@ function draw() {
             
             ctx.fillStyle = 'white';
             ctx.strokeStyle = 'black';
-            ctx.lineWidth = 1;
+            ctx.lineWidth = 1 / state.view.zoom;
             [state.solvedLinkage.p1, state.solvedLinkage.p2, sol.A, sol.B, sol.P].forEach(p => {
                 ctx.beginPath();
-                ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+                ctx.arc(p.x, p.y, 4 / state.view.zoom, 0, Math.PI * 2);
                 ctx.fill();
                 ctx.stroke();
             });
 
             if (state.showLengths) {
-                ctx.font = '12px sans-serif';
-                ctx.fillStyle = 'black';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-
                 const drawLength = (p1, p2, val) => {
                     const midX = (p1.x + p2.x) / 2;
                     const midY = (p1.y + p2.y) / 2;
                     const len = (val / state.scale).toFixed(1);
                     
+                    ctx.save();
+                    ctx.translate(midX, midY);
+                    ctx.scale(1/state.view.zoom, 1/state.view.zoom);
+
+                    ctx.font = '12px sans-serif';
+                    ctx.fillStyle = 'black';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+
                     const text = `${len} units`;
                     const metrics = ctx.measureText(text);
                     const padding = 2;
-                    ctx.save();
+                    
                     ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-                    ctx.fillRect(midX - metrics.width/2 - padding, midY - 6 - padding, metrics.width + padding*2, 12 + padding*2);
+                    ctx.fillRect(-metrics.width/2 - padding, -6 - padding, metrics.width + padding*2, 12 + padding*2);
                     ctx.fillStyle = 'black';
-                    ctx.fillText(text, midX, midY);
+                    ctx.fillText(text, 0, 0);
                     ctx.restore();
                 };
 
@@ -366,6 +446,8 @@ function draw() {
             }
         }
     }
+    
+    ctx.restore();
 }
 
 resizeCanvas();
