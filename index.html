@@ -22,7 +22,7 @@
             <div class="control-group">
                 <h3>Tools</h3>
                 <button id="btn-select" class="active">Select / Move</button>
-                <button id="btn-draw-path">Draw Path</button>
+                <button id="btn-draw">Draw Path</button>
                 <button id="btn-add-start-zone">Add Start Zone</button>
                 <button id="btn-add-pass-zone">Add Pass Zone</button>
                 <div class="manual-input">
@@ -43,6 +43,9 @@
 
             <div class="control-group">
                 <h3>Result</h3>
+                <div style="font-size: 0.9em; margin-bottom: 5px; font-family: monospace;">
+                    Type: <span id="linkage-type">-</span>
+                </div>
                 <div id="theta-range" style="font-size: 0.9em; margin-bottom: 5px; display: flex; justify-content: space-between; font-family: monospace;">
                     <span>&theta; start: <span id="theta-start">-</span></span>
                     <span>&theta; end: <span id="theta-end">-</span></span>

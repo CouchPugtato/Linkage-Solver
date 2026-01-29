@@ -22,13 +22,18 @@ class Solver {
                     if (callback) callback(a, i, globalBestError);
                 }
 
-                const candidate = this.generateCandidate(startZones);
-                
-                const error = this.evaluate(candidate, targetPath, passZones, startZones);
-                
-                if (error < this.bestError) {
-                    this.bestError = error;
-                    this.bestLinkage = candidate;
+                const candidates = [];
+                for (let k = 0; k < 5; k++) candidates.push(this.generateFourBar(startZones));
+                for (let k = 0; k < 5; k++) candidates.push(this.generateFiveBar(startZones));
+                for (let k = 0; k < 5; k++) candidates.push(this.generateSixBar(startZones));
+
+                for (const candidate of candidates) {
+                    const error = this.evaluate(candidate, targetPath, passZones, startZones);
+                    
+                    if (error < this.bestError) {
+                        this.bestError = error;
+                        this.bestLinkage = candidate;
+                    }
                 }
             }
             
@@ -91,9 +96,9 @@ class Solver {
         return { start: minT, end: maxT };
     }
 
-    generateCandidate(startZones) {
+    generateFourBar(startZones) {
         let p1, p2;
-        if (startZones.length > 0) {
+        if (startZones && startZones.length > 0) {
             const z1 = startZones[Math.floor(Math.random() * startZones.length)];
             p1 = new Point(
                 z1.x + Math.random() * z1.w,
@@ -125,6 +130,75 @@ class Solver {
         linkage.cpV = cpV;
         
         return linkage;
+    }
+
+    generateFiveBar(startZones) {
+        let p1, p2;
+        if (startZones && startZones.length > 0) {
+            const z1 = startZones[Math.floor(Math.random() * startZones.length)];
+            p1 = new Point(z1.x + Math.random() * z1.w, z1.y + Math.random() * z1.h);
+            const z2 = startZones[Math.floor(Math.random() * startZones.length)];
+            p2 = new Point(z2.x + Math.random() * z2.w, z2.y + Math.random() * z2.h);
+        } else {
+            p1 = new Point(Math.random() * 800, Math.random() * 600);
+            p2 = new Point(Math.random() * 800, Math.random() * 600);
+        }
+
+        const l4 = p1.dist(p2);
+        const scale = l4 || 100;
+
+        const l1 = Math.random() * scale * 1.5;
+        const l2 = Math.random() * scale * 1.5;
+        const l3 = Math.random() * scale * 2.0;
+        const l_4 = Math.random() * scale * 2.0;
+        
+        const possibleRatios = [1, 1.5, 2, 2.5, 3, -1, -1.5, -2];
+        const gearRatio = possibleRatios[Math.floor(Math.random() * possibleRatios.length)];
+        const phaseShift = Math.random() * Math.PI * 2;
+        
+        const linkage = new GearedFiveBarLinkage(p1, p2, l1, l2, l3, l_4, l4, gearRatio, phaseShift);
+        
+        linkage.cpU = (Math.random() - 0.5) * scale * 1.5;
+        linkage.cpV = (Math.random() - 0.5) * scale * 1.5;
+        
+        return linkage;
+    }
+
+    generateSixBar(startZones) {
+        let p1, p2;
+        if (startZones && startZones.length > 0) {
+            const z1 = startZones[Math.floor(Math.random() * startZones.length)];
+            p1 = new Point(z1.x + Math.random() * z1.w, z1.y + Math.random() * z1.h);
+            const z2 = startZones[Math.floor(Math.random() * startZones.length)];
+            p2 = new Point(z2.x + Math.random() * z2.w, z2.y + Math.random() * z2.h);
+        } else {
+            p1 = new Point(Math.random() * 800, Math.random() * 600);
+            p2 = new Point(Math.random() * 800, Math.random() * 600);
+        }
+
+        const dist_p1_p2 = p1.dist(p2);
+        const scale = dist_p1_p2 || 100;
+        
+        const l1 = Math.random() * scale * 1.2;
+        const l2 = Math.random() * scale * 1.5;
+        const l3 = Math.random() * scale * 1.5;
+        
+        const linkage = new WattSixBarLinkage(p1, p2, l1, l2, l3, dist_p1_p2);
+        
+        linkage.cu = (Math.random() - 0.5) * 2;
+        linkage.cv = (Math.random() - 0.5) * 2;
+        
+        linkage.du = (Math.random() - 0.5) * 2;
+        linkage.dv = (Math.random() - 0.5) * 2;
+        
+        linkage.l5 = Math.random() * scale * 1.5;
+        linkage.l6 = Math.random() * scale * 1.5;
+        
+        return linkage;
+    }
+
+    generateCandidate(startZones) {
+        return this.generateFourBar(startZones);
     }
 
     evaluate(linkage, targetPath, passZones, startZones) {

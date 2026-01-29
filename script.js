@@ -52,7 +52,7 @@ inputWidth.addEventListener('change', (e) => {
 });
 
 document.getElementById('btn-select').addEventListener('click', () => setMode('select'));
-document.getElementById('btn-draw-path').addEventListener('click', () => setMode('draw'));
+document.getElementById('btn-draw').addEventListener('click', () => setMode('draw'));
 document.getElementById('btn-add-start-zone').addEventListener('click', () => setMode('add-start-zone'));
 document.getElementById('btn-add-pass-zone').addEventListener('click', () => setMode('add-pass-zone'));
 
@@ -82,6 +82,7 @@ document.getElementById('btn-clear').addEventListener('click', () => {
     state.selectedZoneIndex = null;
     updateDeleteButtonState();
     
+    document.getElementById('linkage-type').textContent = '-';
     document.getElementById('theta-start').textContent = '-';
     document.getElementById('theta-end').textContent = '-';
     document.getElementById('path-error').textContent = '-';
@@ -125,6 +126,7 @@ btnSolve.addEventListener('click', async () => {
     btnSolve.disabled = true;
     statusDiv.textContent = "Solving... (This may take a moment)";
     
+    document.getElementById('linkage-type').textContent = '-';
     document.getElementById('theta-start').textContent = '-';
     document.getElementById('theta-end').textContent = '-';
     document.getElementById('path-error').textContent = '-';
@@ -142,6 +144,7 @@ btnSolve.addEventListener('click', async () => {
     statusDiv.textContent = linkage ? "Solution found!" : "No solution found.";
     
     if (linkage) {
+        document.getElementById('linkage-type').textContent = linkage.type || 'four-bar';
         document.getElementById('simulation-slider').disabled = false;
         document.getElementById('btn-play').disabled = false;
         document.getElementById('chk-show-lengths').disabled = false;
@@ -156,6 +159,7 @@ btnSolve.addEventListener('click', async () => {
         
         draw();
     } else {
+        document.getElementById('linkage-type').textContent = '-';
         document.getElementById('theta-start').textContent = '-';
         document.getElementById('theta-end').textContent = '-';
         document.getElementById('path-error').textContent = '-';
@@ -430,51 +434,7 @@ function draw() {
                 tracer: '#e74c3c'
             };
 
-            ctx.lineWidth = 4 / state.view.zoom;
-            ctx.strokeStyle = colors.locked;
-            ctx.beginPath();
-            ctx.moveTo(state.solvedLinkage.p1.x, state.solvedLinkage.p1.y);
-            ctx.lineTo(state.solvedLinkage.p2.x, state.solvedLinkage.p2.y);
-            ctx.stroke();
-            
-            ctx.lineWidth = 5 / state.view.zoom;
-            ctx.strokeStyle = colors.driven;
-            ctx.beginPath();
-            ctx.moveTo(state.solvedLinkage.p1.x, state.solvedLinkage.p1.y);
-            ctx.lineTo(sol.A.x, sol.A.y);
-            ctx.stroke();
-
-            const rMotor = 12 / state.view.zoom;
-            ctx.beginPath();
-            ctx.strokeStyle = colors.driven;
-            ctx.lineWidth = 2 / state.view.zoom;
-            ctx.arc(state.solvedLinkage.p1.x, state.solvedLinkage.p1.y, rMotor, 0, Math.PI * 1.5);
-            ctx.stroke();
-            ctx.beginPath();
-            const arrowAngle = Math.PI * 1.5;
-            const arrowX = state.solvedLinkage.p1.x + rMotor * Math.cos(arrowAngle);
-            const arrowY = state.solvedLinkage.p1.y + rMotor * Math.sin(arrowAngle);
-            ctx.moveTo(arrowX, arrowY);
-            ctx.lineTo(arrowX - 4/state.view.zoom, arrowY + 2/state.view.zoom);
-            ctx.moveTo(arrowX, arrowY);
-            ctx.lineTo(arrowX + 2/state.view.zoom, arrowY + 4/state.view.zoom);
-            ctx.stroke();
-            
-            ctx.lineWidth = 3 / state.view.zoom;
-            ctx.strokeStyle = colors.unlocked;
-            ctx.beginPath();
-            ctx.moveTo(state.solvedLinkage.p2.x, state.solvedLinkage.p2.y);
-            ctx.lineTo(sol.B.x, sol.B.y);
-            ctx.stroke();
-            
-            ctx.lineWidth = 2 / state.view.zoom;
-            ctx.strokeStyle = colors.unlocked;
-            ctx.beginPath();
-            ctx.moveTo(sol.A.x, sol.A.y);
-            ctx.lineTo(sol.B.x, sol.B.y);
-            ctx.lineTo(sol.P.x, sol.P.y);
-            ctx.closePath();
-            ctx.stroke();
+            const type = state.solvedLinkage.type || 'four-bar';
             
             const drawPoint = (p, color, radius = 4) => {
                 ctx.beginPath();
@@ -509,12 +469,152 @@ function draw() {
                 drawPoint(p, colors.locked); 
             };
 
-            drawGroundSymbol(state.solvedLinkage.p1);
-            drawGroundSymbol(state.solvedLinkage.p2);
-            
-            drawPoint(sol.A, colors.driven);
-            drawPoint(sol.B, colors.unlocked);
-            drawPoint(sol.P, colors.tracer, 6);
+            if (type === 'four-bar') {
+                ctx.lineWidth = 4 / state.view.zoom;
+                ctx.strokeStyle = colors.locked;
+                ctx.beginPath();
+                ctx.moveTo(state.solvedLinkage.p1.x, state.solvedLinkage.p1.y);
+                ctx.lineTo(state.solvedLinkage.p2.x, state.solvedLinkage.p2.y);
+                ctx.stroke();
+                
+                ctx.lineWidth = 5 / state.view.zoom;
+                ctx.strokeStyle = colors.driven;
+                ctx.beginPath();
+                ctx.moveTo(state.solvedLinkage.p1.x, state.solvedLinkage.p1.y);
+                ctx.lineTo(sol.A.x, sol.A.y);
+                ctx.stroke();
+
+                const rMotor = 12 / state.view.zoom;
+                ctx.beginPath();
+                ctx.strokeStyle = colors.driven;
+                ctx.lineWidth = 2 / state.view.zoom;
+                ctx.arc(state.solvedLinkage.p1.x, state.solvedLinkage.p1.y, rMotor, 0, Math.PI * 1.5);
+                ctx.stroke();
+                ctx.beginPath();
+                const arrowAngle = Math.PI * 1.5;
+                const arrowX = state.solvedLinkage.p1.x + rMotor * Math.cos(arrowAngle);
+                const arrowY = state.solvedLinkage.p1.y + rMotor * Math.sin(arrowAngle);
+                ctx.moveTo(arrowX, arrowY);
+                ctx.lineTo(arrowX - 4/state.view.zoom, arrowY + 2/state.view.zoom);
+                ctx.moveTo(arrowX, arrowY);
+                ctx.lineTo(arrowX + 2/state.view.zoom, arrowY + 4/state.view.zoom);
+                ctx.stroke();
+                
+                ctx.lineWidth = 3 / state.view.zoom;
+                ctx.strokeStyle = colors.unlocked;
+                ctx.beginPath();
+                ctx.moveTo(state.solvedLinkage.p2.x, state.solvedLinkage.p2.y);
+                ctx.lineTo(sol.B.x, sol.B.y);
+                ctx.stroke();
+                
+                ctx.lineWidth = 2 / state.view.zoom;
+                ctx.strokeStyle = colors.unlocked;
+                ctx.beginPath();
+                ctx.moveTo(sol.A.x, sol.A.y);
+                ctx.lineTo(sol.B.x, sol.B.y);
+                ctx.lineTo(sol.P.x, sol.P.y);
+                ctx.closePath();
+                ctx.stroke();
+
+                drawGroundSymbol(state.solvedLinkage.p1);
+                drawGroundSymbol(state.solvedLinkage.p2);
+                
+                drawPoint(sol.A, colors.driven);
+                drawPoint(sol.B, colors.unlocked);
+                drawPoint(sol.P, colors.tracer, 6);
+
+            } else if (type === 'five-bar') {
+                ctx.lineWidth = 4 / state.view.zoom;
+                ctx.strokeStyle = colors.locked;
+                ctx.beginPath();
+                ctx.moveTo(state.solvedLinkage.p1.x, state.solvedLinkage.p1.y);
+                ctx.lineTo(state.solvedLinkage.p2.x, state.solvedLinkage.p2.y);
+                ctx.stroke();
+                
+                ctx.lineWidth = 5 / state.view.zoom;
+                ctx.strokeStyle = colors.driven;
+                ctx.beginPath();
+                ctx.moveTo(state.solvedLinkage.p1.x, state.solvedLinkage.p1.y);
+                ctx.lineTo(sol.A.x, sol.A.y);
+                ctx.stroke();
+                
+                ctx.beginPath();
+                ctx.moveTo(state.solvedLinkage.p2.x, state.solvedLinkage.p2.y);
+                ctx.lineTo(sol.B.x, sol.B.y);
+                ctx.stroke();
+
+                ctx.lineWidth = 3 / state.view.zoom;
+                ctx.strokeStyle = colors.unlocked;
+                ctx.beginPath();
+                ctx.moveTo(sol.A.x, sol.A.y);
+                ctx.lineTo(sol.C.x, sol.C.y);
+                ctx.lineTo(sol.B.x, sol.B.y);
+                ctx.stroke();
+                
+                ctx.lineWidth = 2 / state.view.zoom;
+                ctx.beginPath();
+                ctx.moveTo(sol.A.x, sol.A.y);
+                ctx.lineTo(sol.C.x, sol.C.y);
+                ctx.lineTo(sol.P.x, sol.P.y);
+                ctx.closePath();
+                ctx.stroke();
+
+                drawGroundSymbol(state.solvedLinkage.p1);
+                drawGroundSymbol(state.solvedLinkage.p2);
+                
+                drawPoint(sol.A, colors.driven);
+                drawPoint(sol.B, colors.driven);
+                drawPoint(sol.C, colors.unlocked);
+                drawPoint(sol.P, colors.tracer, 6);
+
+            } else if (type === 'six-bar') {
+                ctx.lineWidth = 4 / state.view.zoom;
+                ctx.strokeStyle = colors.locked;
+                ctx.beginPath();
+                ctx.moveTo(state.solvedLinkage.p1.x, state.solvedLinkage.p1.y);
+                ctx.lineTo(state.solvedLinkage.p2.x, state.solvedLinkage.p2.y);
+                ctx.stroke();
+                
+                ctx.lineWidth = 5 / state.view.zoom;
+                ctx.strokeStyle = colors.driven;
+                ctx.beginPath();
+                ctx.moveTo(state.solvedLinkage.p1.x, state.solvedLinkage.p1.y);
+                ctx.lineTo(sol.A.x, sol.A.y);
+                ctx.stroke();
+                
+                ctx.lineWidth = 3 / state.view.zoom;
+                ctx.strokeStyle = colors.unlocked;
+                ctx.beginPath();
+                ctx.moveTo(sol.A.x, sol.A.y);
+                ctx.lineTo(sol.B.x, sol.B.y);
+                ctx.lineTo(sol.C.x, sol.C.y);
+                ctx.closePath();
+                ctx.stroke();
+                
+                ctx.beginPath();
+                ctx.moveTo(state.solvedLinkage.p2.x, state.solvedLinkage.p2.y);
+                ctx.lineTo(sol.B.x, sol.B.y);
+                ctx.lineTo(sol.D.x, sol.D.y);
+                ctx.closePath();
+                ctx.stroke();
+                
+                ctx.lineWidth = 2 / state.view.zoom;
+                ctx.beginPath();
+                ctx.moveTo(sol.C.x, sol.C.y);
+                ctx.lineTo(sol.P.x, sol.P.y);
+                ctx.lineTo(sol.D.x, sol.D.y);
+                ctx.stroke();
+                
+                drawGroundSymbol(state.solvedLinkage.p1);
+                drawGroundSymbol(state.solvedLinkage.p2);
+                
+                drawPoint(sol.A, colors.driven);
+                drawPoint(sol.B, colors.unlocked);
+                drawPoint(sol.C, colors.unlocked, 3);
+                drawPoint(sol.D, colors.unlocked, 3);
+                drawPoint(sol.P, colors.tracer, 6);
+            }
+
 
             if (state.showLengths) {
                 const drawLength = (p1, p2, val) => {
@@ -542,10 +642,31 @@ function draw() {
                     ctx.restore();
                 };
 
-                drawLength(state.solvedLinkage.p1, sol.A, state.solvedLinkage.l1);
-                drawLength(sol.A, sol.B, state.solvedLinkage.l2);
-                drawLength(state.solvedLinkage.p2, sol.B, state.solvedLinkage.l3);
-                drawLength(state.solvedLinkage.p1, state.solvedLinkage.p2, state.solvedLinkage.l4);
+                if (type === 'four-bar') {
+                    drawLength(state.solvedLinkage.p1, sol.A, state.solvedLinkage.l1);
+                    drawLength(sol.A, sol.B, state.solvedLinkage.l2);
+                    drawLength(state.solvedLinkage.p2, sol.B, state.solvedLinkage.l3);
+                    drawLength(state.solvedLinkage.p1, state.solvedLinkage.p2, state.solvedLinkage.l4);
+                } else if (type === 'five-bar') {
+                    drawLength(state.solvedLinkage.p1, sol.A, state.solvedLinkage.l1);
+                    drawLength(state.solvedLinkage.p2, sol.B, state.solvedLinkage.l2);
+                    drawLength(sol.A, sol.C, state.solvedLinkage.l3);
+                    drawLength(sol.B, sol.C, state.solvedLinkage.l4);
+                    drawLength(state.solvedLinkage.p1, state.solvedLinkage.p2, state.solvedLinkage.p1.dist(state.solvedLinkage.p2));
+                    drawLength(sol.C, sol.P, sol.C.dist(sol.P));
+                    drawLength(sol.A, sol.P, sol.A.dist(sol.P));
+                } else if (type === 'six-bar') {
+                    drawLength(state.solvedLinkage.p1, sol.A, state.solvedLinkage.l1);
+                    drawLength(sol.A, sol.B, state.solvedLinkage.l2);
+                    drawLength(state.solvedLinkage.p2, sol.B, state.solvedLinkage.l3);
+                    drawLength(state.solvedLinkage.p1, state.solvedLinkage.p2, state.solvedLinkage.l4);
+                    drawLength(sol.C, sol.P, state.solvedLinkage.l5);
+                    drawLength(sol.D, sol.P, state.solvedLinkage.l6);
+                    drawLength(sol.A, sol.C, sol.A.dist(sol.C));
+                    drawLength(sol.B, sol.C, sol.B.dist(sol.C));
+                    drawLength(state.solvedLinkage.p2, sol.D, state.solvedLinkage.p2.dist(sol.D));
+                    drawLength(sol.B, sol.D, sol.B.dist(sol.D));
+                }
             }
         }
     }
