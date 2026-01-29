@@ -183,7 +183,6 @@ document.getElementById('chk-show-lengths').addEventListener('change', (e) => {
 function animate() {
     if (!state.isPlaying) return;
     
-    // We need a direction. Let's add it to state if not present.
     if (state.animationDir === undefined) state.animationDir = 1;
     
     const range = state.solvedLinkage && state.solvedLinkage.angleRange;
@@ -192,19 +191,10 @@ function animate() {
          if (angleDeg > 360) angleDeg = 0;
          state.simulationAngle = angleDeg * (Math.PI / 180);
     } else {
-        const speed = 2 * (Math.PI / 180); // 2 degrees per frame
+        const speed = 2 * (Math.PI / 180);
         let nextAngle = state.simulationAngle + speed * state.animationDir;
         
-        // Snap to range if outside
         if (state.simulationAngle < range.start || state.simulationAngle > range.end) {
-             // If we are outside, check if we can "unwrap" the current angle to be close to the range?
-             // Or just snap to the closest bound.
-             // Given simulationAngle comes from slider (0..2PI) usually, it might be "far" in linear space 
-             // but close in angular space.
-             // But since we want to animate in the continuous unwrapped range, we should probably 
-             // initialize simulationAngle to the start of the range when we detect it's "lost".
-             
-             // A simple heuristic: if we are not "inside" the range, jump to start.
              state.simulationAngle = range.start;
              state.animationDir = 1;
              nextAngle = range.start + speed;
@@ -220,7 +210,6 @@ function animate() {
         state.simulationAngle = nextAngle;
     }
     
-    // Normalize for slider (0-360)
     let displayAngle = state.simulationAngle % (2 * Math.PI);
     if (displayAngle < 0) displayAngle += 2 * Math.PI;
     slider.value = displayAngle * (180 / Math.PI);
@@ -434,43 +423,98 @@ function draw() {
         ctx.stroke();
         
         if (sol) {
-            ctx.lineWidth = 3 / state.view.zoom;
-            
-            ctx.strokeStyle = 'black';
+            const colors = {
+                locked: '#7f8c8d',
+                driven: '#27ae60',
+                unlocked: '#2980b9',
+                tracer: '#e74c3c'
+            };
+
+            ctx.lineWidth = 4 / state.view.zoom;
+            ctx.strokeStyle = colors.locked;
             ctx.beginPath();
             ctx.moveTo(state.solvedLinkage.p1.x, state.solvedLinkage.p1.y);
             ctx.lineTo(state.solvedLinkage.p2.x, state.solvedLinkage.p2.y);
             ctx.stroke();
             
-            ctx.strokeStyle = 'purple';
+            ctx.lineWidth = 5 / state.view.zoom;
+            ctx.strokeStyle = colors.driven;
             ctx.beginPath();
             ctx.moveTo(state.solvedLinkage.p1.x, state.solvedLinkage.p1.y);
             ctx.lineTo(sol.A.x, sol.A.y);
             ctx.stroke();
+
+            const rMotor = 12 / state.view.zoom;
+            ctx.beginPath();
+            ctx.strokeStyle = colors.driven;
+            ctx.lineWidth = 2 / state.view.zoom;
+            ctx.arc(state.solvedLinkage.p1.x, state.solvedLinkage.p1.y, rMotor, 0, Math.PI * 1.5);
+            ctx.stroke();
+            ctx.beginPath();
+            const arrowAngle = Math.PI * 1.5;
+            const arrowX = state.solvedLinkage.p1.x + rMotor * Math.cos(arrowAngle);
+            const arrowY = state.solvedLinkage.p1.y + rMotor * Math.sin(arrowAngle);
+            ctx.moveTo(arrowX, arrowY);
+            ctx.lineTo(arrowX - 4/state.view.zoom, arrowY + 2/state.view.zoom);
+            ctx.moveTo(arrowX, arrowY);
+            ctx.lineTo(arrowX + 2/state.view.zoom, arrowY + 4/state.view.zoom);
+            ctx.stroke();
             
-            ctx.strokeStyle = 'orange';
+            ctx.lineWidth = 3 / state.view.zoom;
+            ctx.strokeStyle = colors.unlocked;
             ctx.beginPath();
             ctx.moveTo(state.solvedLinkage.p2.x, state.solvedLinkage.p2.y);
             ctx.lineTo(sol.B.x, sol.B.y);
             ctx.stroke();
             
-            ctx.strokeStyle = 'blue';
+            ctx.lineWidth = 2 / state.view.zoom;
+            ctx.strokeStyle = colors.unlocked;
             ctx.beginPath();
             ctx.moveTo(sol.A.x, sol.A.y);
             ctx.lineTo(sol.B.x, sol.B.y);
             ctx.lineTo(sol.P.x, sol.P.y);
-            ctx.lineTo(sol.A.x, sol.A.y);
+            ctx.closePath();
             ctx.stroke();
             
-            ctx.fillStyle = 'white';
-            ctx.strokeStyle = 'black';
-            ctx.lineWidth = 1 / state.view.zoom;
-            [state.solvedLinkage.p1, state.solvedLinkage.p2, sol.A, sol.B, sol.P].forEach(p => {
+            const drawPoint = (p, color, radius = 4) => {
                 ctx.beginPath();
-                ctx.arc(p.x, p.y, 4 / state.view.zoom, 0, Math.PI * 2);
+                ctx.arc(p.x, p.y, radius / state.view.zoom, 0, Math.PI * 2);
+                ctx.fillStyle = color;
                 ctx.fill();
+                ctx.strokeStyle = 'black';
+                ctx.lineWidth = 1 / state.view.zoom;
                 ctx.stroke();
-            });
+            };
+
+            const drawGroundSymbol = (p) => {
+                const s = 12 / state.view.zoom;
+                ctx.fillStyle = colors.locked;
+                ctx.beginPath();
+                ctx.moveTo(p.x, p.y);
+                ctx.lineTo(p.x - s/2, p.y + s);
+                ctx.lineTo(p.x + s/2, p.y + s);
+                ctx.closePath();
+                ctx.fill();
+                ctx.strokeStyle = '#7f8c8d';
+                ctx.lineWidth = 1 / state.view.zoom;
+                ctx.beginPath();
+                ctx.moveTo(p.x - s/2, p.y + s);
+                ctx.lineTo(p.x - s/2 - 2/state.view.zoom, p.y + s + 4/state.view.zoom);
+                ctx.moveTo(p.x, p.y + s);
+                ctx.lineTo(p.x - 2/state.view.zoom, p.y + s + 4/state.view.zoom);
+                ctx.moveTo(p.x + s/2, p.y + s);
+                ctx.lineTo(p.x + s/2 - 2/state.view.zoom, p.y + s + 4/state.view.zoom);
+                ctx.stroke();
+                
+                drawPoint(p, colors.locked); 
+            };
+
+            drawGroundSymbol(state.solvedLinkage.p1);
+            drawGroundSymbol(state.solvedLinkage.p2);
+            
+            drawPoint(sol.A, colors.driven);
+            drawPoint(sol.B, colors.unlocked);
+            drawPoint(sol.P, colors.tracer, 6);
 
             if (state.showLengths) {
                 const drawLength = (p1, p2, val) => {
