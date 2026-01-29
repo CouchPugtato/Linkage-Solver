@@ -81,6 +81,11 @@ document.getElementById('btn-clear').addEventListener('click', () => {
     state.solvedLinkage = null;
     state.selectedZoneIndex = null;
     updateDeleteButtonState();
+    
+    document.getElementById('theta-start').textContent = '-';
+    document.getElementById('theta-end').textContent = '-';
+    document.getElementById('path-error').textContent = '-';
+    
     draw();
 });
 
@@ -120,12 +125,16 @@ btnSolve.addEventListener('click', async () => {
     btnSolve.disabled = true;
     statusDiv.textContent = "Solving... (This may take a moment)";
     
+    document.getElementById('theta-start').textContent = '-';
+    document.getElementById('theta-end').textContent = '-';
+    document.getElementById('path-error').textContent = '-';
+
     const solver = new Solver();
     const startZones = state.zones.filter(z => z.type === 'start');
     const passZones = state.zones.filter(z => z.type === 'pass');
     
-    const linkage = await solver.solve(state.path, startZones, passZones, (iter, error) => {
-        statusDiv.textContent = `Iteration: ${iter}, Error: ${error.toFixed(2)}`;
+    const linkage = await solver.solve(state.path, startZones, passZones, (attempt, iter, error) => {
+        statusDiv.textContent = `Attempt ${attempt}/5, Iteration: ${iter}, Best Error: ${error === Infinity ? '-' : error.toFixed(2)}`;
     });
     
     state.solvedLinkage = linkage;
@@ -136,7 +145,20 @@ btnSolve.addEventListener('click', async () => {
         document.getElementById('simulation-slider').disabled = false;
         document.getElementById('btn-play').disabled = false;
         document.getElementById('chk-show-lengths').disabled = false;
+        
+        if (linkage.angleRange) {
+            const toDeg = r => (r * 180 / Math.PI).toFixed(1) + '°';
+            document.getElementById('theta-start').textContent = toDeg(linkage.angleRange.start);
+            document.getElementById('theta-end').textContent = toDeg(linkage.angleRange.end);
+        }
+        
+        document.getElementById('path-error').textContent = linkage.error.toFixed(2);
+        
         draw();
+    } else {
+        document.getElementById('theta-start').textContent = '-';
+        document.getElementById('theta-end').textContent = '-';
+        document.getElementById('path-error').textContent = '-';
     }
 });
 
@@ -161,11 +183,48 @@ document.getElementById('chk-show-lengths').addEventListener('change', (e) => {
 function animate() {
     if (!state.isPlaying) return;
     
-    let angleDeg = (state.simulationAngle * 180 / Math.PI) + 2;
-    if (angleDeg > 360) angleDeg = 0;
+    // We need a direction. Let's add it to state if not present.
+    if (state.animationDir === undefined) state.animationDir = 1;
     
-    state.simulationAngle = angleDeg * (Math.PI / 180);
-    slider.value = angleDeg;
+    const range = state.solvedLinkage && state.solvedLinkage.angleRange;
+    if (!range) {
+         let angleDeg = (state.simulationAngle * 180 / Math.PI) + 2;
+         if (angleDeg > 360) angleDeg = 0;
+         state.simulationAngle = angleDeg * (Math.PI / 180);
+    } else {
+        const speed = 2 * (Math.PI / 180); // 2 degrees per frame
+        let nextAngle = state.simulationAngle + speed * state.animationDir;
+        
+        // Snap to range if outside
+        if (state.simulationAngle < range.start || state.simulationAngle > range.end) {
+             // If we are outside, check if we can "unwrap" the current angle to be close to the range?
+             // Or just snap to the closest bound.
+             // Given simulationAngle comes from slider (0..2PI) usually, it might be "far" in linear space 
+             // but close in angular space.
+             // But since we want to animate in the continuous unwrapped range, we should probably 
+             // initialize simulationAngle to the start of the range when we detect it's "lost".
+             
+             // A simple heuristic: if we are not "inside" the range, jump to start.
+             state.simulationAngle = range.start;
+             state.animationDir = 1;
+             nextAngle = range.start + speed;
+        }
+
+        if (nextAngle >= range.end) {
+            nextAngle = range.end;
+            state.animationDir = -1;
+        } else if (nextAngle <= range.start) {
+            nextAngle = range.start;
+            state.animationDir = 1;
+        }
+        state.simulationAngle = nextAngle;
+    }
+    
+    // Normalize for slider (0-360)
+    let displayAngle = state.simulationAngle % (2 * Math.PI);
+    if (displayAngle < 0) displayAngle += 2 * Math.PI;
+    slider.value = displayAngle * (180 / Math.PI);
+    
     draw();
     
     state.animationFrameId = requestAnimationFrame(animate);

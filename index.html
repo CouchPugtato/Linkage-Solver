@@ -43,6 +43,13 @@
 
             <div class="control-group">
                 <h3>Result</h3>
+                <div id="theta-range" style="font-size: 0.9em; margin-bottom: 5px; display: flex; justify-content: space-between; font-family: monospace;">
+                    <span>&theta; start: <span id="theta-start">-</span></span>
+                    <span>&theta; end: <span id="theta-end">-</span></span>
+                </div>
+                <div style="font-size: 0.9em; margin-bottom: 10px; font-family: monospace;">
+                    Avg. Deviation: <span id="path-error">-</span>
+                </div>
                 <input type="range" id="simulation-slider" min="0" max="360" value="0" disabled>
                 <button id="btn-play" disabled>Play</button>
                 <label style="margin-top: 10px; display: flex; align-items: center; gap: 5px;">

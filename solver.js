@@ -2,32 +2,93 @@ class Solver {
     constructor() {
         this.bestLinkage = null;
         this.bestError = Infinity;
-        this.maxIterations = 10000;
+        this.maxIterations = 5000;
+        this.attempts = 5;
     }
 
     async solve(targetPath, startZones, passZones, callback) {
-        this.bestError = Infinity;
-        
-        const startTime = Date.now();
-        
-        for (let i = 0; i < this.maxIterations; i++) {
-            if (i % 100 === 0) {
-                await new Promise(r => setTimeout(r, 0));
-                if (callback) callback(i, this.bestError);
-            }
+        let globalBestLinkage = null;
+        let globalBestError = Infinity;
 
-            const candidate = this.generateCandidate(startZones);
+        const startTime = Date.now();
+
+        for (let a = 1; a <= this.attempts; a++) {
+            this.bestError = Infinity;
+            this.bestLinkage = null;
             
-            const error = this.evaluate(candidate, targetPath, passZones, startZones);
+            for (let i = 0; i < this.maxIterations; i++) {
+                if (i % 100 === 0) {
+                    await new Promise(r => setTimeout(r, 0));
+                    if (callback) callback(a, i, globalBestError);
+                }
+
+                const candidate = this.generateCandidate(startZones);
+                
+                const error = this.evaluate(candidate, targetPath, passZones, startZones);
+                
+                if (error < this.bestError) {
+                    this.bestError = error;
+                    this.bestLinkage = candidate;
+                }
+            }
             
-            if (error < this.bestError) {
-                this.bestError = error;
-                this.bestLinkage = candidate;
-                console.log(`New best error: ${error}`);
+            if (this.bestError < globalBestError) {
+                globalBestError = this.bestError;
+                globalBestLinkage = this.bestLinkage;
             }
         }
         
+        this.bestLinkage = globalBestLinkage;
+        this.bestError = globalBestError;
+
+        if (this.bestLinkage) {
+            this.bestLinkage.angleRange = this.findPathRange(this.bestLinkage, targetPath);
+            this.bestLinkage.error = this.bestError;
+        }
+
         return this.bestLinkage;
+    }
+
+    findPathRange(linkage, targetPath) {
+        const step = 2 * (Math.PI / 180);
+        let rawThetas = [];
+        
+        for (const tp of targetPath) {
+            let bestTheta = 0;
+            let minDist = Infinity;
+            
+            for (let t = 0; t < 2 * Math.PI; t += step) {
+                const sol = linkage.solve(t);
+                if (sol) {
+                    const d = sol.P.dist(tp);
+                    if (d < minDist) {
+                        minDist = d;
+                        bestTheta = t;
+                    }
+                }
+            }
+            rawThetas.push(bestTheta);
+        }
+        
+        if (rawThetas.length === 0) return { start: 0, end: 2 * Math.PI };
+
+        let unwrappedThetas = [rawThetas[0]];
+        for (let i = 1; i < rawThetas.length; i++) {
+            let prev = unwrappedThetas[i-1];
+            let curr = rawThetas[i];
+            
+            let diff = curr - prev;
+            
+            while (curr - prev > Math.PI) curr -= 2 * Math.PI;
+            while (curr - prev < -Math.PI) curr += 2 * Math.PI;
+            
+            unwrappedThetas.push(curr);
+        }
+        
+        const minT = Math.min(...unwrappedThetas);
+        const maxT = Math.max(...unwrappedThetas);
+        
+        return { start: minT, end: maxT };
     }
 
     generateCandidate(startZones) {
@@ -70,6 +131,11 @@ class Solver {
         const curvePoints = [];
         const step = 5 * (Math.PI / 180);
         const validZones = [...(startZones || []), ...(passZones || [])];
+        
+        // Find configuration closest to path start
+        let startSol = null;
+        let startMinDist = Infinity;
+        const pStart = targetPath[0];
 
         for (let theta = 0; theta < 2 * Math.PI; theta += step) {
             const sol = linkage.solve(theta);
@@ -92,11 +158,33 @@ class Solver {
                     }
                     if (!allIn) return Infinity;
                 }
+                
+                const d = sol.P.dist(pStart);
+                if (d < startMinDist) {
+                    startMinDist = d;
+                    startSol = sol;
+                }
+                
                 curvePoints.push(sol.P);
             }
         }
         
         if (curvePoints.length < 10) return Infinity;
+        
+        // Check if the starting configuration is in start zones
+        if (startZones && startZones.length > 0 && startSol) {
+            const startPoints = [startSol.A, startSol.B, startSol.P];
+            for (const p of startPoints) {
+                let inStartZone = false;
+                for (const z of startZones) {
+                    if (z.contains(p)) {
+                        inStartZone = true;
+                        break;
+                    }
+                }
+                if (!inStartZone) return Infinity;
+            }
+        }
         
         let totalDist = 0;
         let maxDist = 0;
