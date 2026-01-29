@@ -9,53 +9,75 @@
 <body>
     <div id="container">
         <div id="sidebar">
-            <h1>Linkage Solver</h1>
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #3498db; padding-bottom: 10px; margin-bottom: 5px;">
+                <h1 style="border: none; margin: 0; padding: 0;">Linkage Solver</h1>
+                <button id="btn-help" style="width: auto; padding: 5px 10px; margin: 0; border-radius: 50%; height: 30px; width: 30px; display: flex; align-items: center; justify-content: center; font-weight: bold; background: #3498db; color: white;" title="Help & Shortcuts">?</button>
+            </div>
             
             <div class="control-group">
-                <h3>Settings</h3>
-                <label>
-                    Canvas Width (units):
-                    <input type="number" id="canvas-units-width" value="100">
-                </label>
-            </div>
-
-            <div class="control-group">
                 <h3>Tools</h3>
-                <button id="btn-select" class="active">Select / Move</button>
-                <button id="btn-draw">Draw Path</button>
-                <button id="btn-add-start-zone">Add Start Zone</button>
-                <button id="btn-add-pass-zone">Add Pass Zone</button>
+                <button id="btn-select" class="active" title="Select and move zones (S)">
+                    Select / Move <span class="kbd-shortcut">S</span>
+                </button>
+                <button id="btn-draw" title="Draw the target path (D)">
+                    Draw Path <span class="kbd-shortcut">D</span>
+                </button>
+                <button id="btn-add-start-zone" title="Add a green start zone (A)">
+                    Add Start Zone <span class="kbd-shortcut">A</span>
+                </button>
+                <button id="btn-add-pass-zone" title="Add a blue pass zone (Z)">
+                    Add Pass Zone <span class="kbd-shortcut">Z</span>
+                </button>
+                
                 <div class="manual-input">
                     <input type="number" id="zone-w" placeholder="W" style="width: 45%;">
                     <input type="number" id="zone-h" placeholder="H" style="width: 45%;">
-                    <button id="btn-add-manual-zone" style="margin-top: 5px;">Add Zone (Center)</button>
+                    <button id="btn-add-manual-zone" style="margin-top: 5px; margin-bottom: 0;">Add</button>
                 </div>
-                <button id="btn-delete-zone">Delete Selected Zone</button>
-                <button id="btn-clear-path">Clear Path</button>
-                <button id="btn-clear">Clear All</button>
+                
+                <button id="btn-delete-zone" title="Delete selected zone (Del)">
+                    Delete Selected Zone <span class="kbd-shortcut">Del</span>
+                </button>
+                <button id="btn-clear-path" title="Clear only the drawn path">
+                    Clear Path
+                </button>
+                <button id="btn-clear" title="Clear everything (Esc)">
+                    Clear All <span class="kbd-shortcut">Esc</span>
+                </button>
             </div>
 
             <div class="control-group">
                 <h3>Solver</h3>
-                <button id="btn-solve">Solve Linkage</button>
+                <button id="btn-solve" title="Start solving (Enter)">
+                    Solve Linkage <span class="kbd-shortcut">Enter</span>
+                </button>
                 <div id="status">Ready</div>
             </div>
 
             <div class="control-group">
                 <h3>Result</h3>
-                <div style="font-size: 0.9em; margin-bottom: 5px; font-family: monospace;">
-                    Type: <span id="linkage-type">-</span>
+                <div class="result-row">
+                    <span class="result-label">Type:</span>
+                    <span class="result-value" id="linkage-type">-</span>
                 </div>
-                <div id="theta-range" style="font-size: 0.9em; margin-bottom: 5px; display: flex; justify-content: space-between; font-family: monospace;">
-                    <span>&theta; start: <span id="theta-start">-</span></span>
-                    <span>&theta; end: <span id="theta-end">-</span></span>
+                <div class="result-row">
+                    <span class="result-label">&theta; start:</span>
+                    <span class="result-value" id="theta-start">-</span>
                 </div>
-                <div style="font-size: 0.9em; margin-bottom: 10px; font-family: monospace;">
-                    Avg. Deviation: <span id="path-error">-</span>
+                <div class="result-row">
+                    <span class="result-label">&theta; end:</span>
+                    <span class="result-value" id="theta-end">-</span>
                 </div>
+                <div class="result-row" style="border-bottom: none;">
+                    <span class="result-label">Avg. Deviation:</span>
+                    <span class="result-value" id="path-error">-</span>
+                </div>
+
                 <input type="range" id="simulation-slider" min="0" max="360" value="0" disabled>
-                <button id="btn-play" disabled>Play</button>
-                <label style="margin-top: 10px; display: flex; align-items: center; gap: 5px;">
+                <button id="btn-play" disabled title="Play/Pause simulation (Space)">
+                    Play <span class="kbd-shortcut">Space</span>
+                </button>
+                <label style="margin-top: 10px; display: flex; align-items: center; gap: 5px; cursor: pointer;">
                     <input type="checkbox" id="chk-show-lengths" disabled> Show Lengths
                 </label>
             </div>
@@ -64,6 +86,44 @@
             <canvas id="main-canvas"></canvas>
         </div>
     </div>
+
+    <!-- Help Modal -->
+    <div id="help-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal">&times;</span>
+            <h2 style="margin-bottom: 20px; color: #2c3e50;">Linkage Solver Guide</h2>
+            
+            <div class="help-section">
+                <h4>Keyboard Shortcuts</h4>
+                <ul>
+                    <li><span class="key-badge">S</span> Select Mode</li>
+                    <li><span class="key-badge">D</span> Draw Mode</li>
+                    <li><span class="key-badge">A</span> Add Start Zone (Green)</li>
+                    <li><span class="key-badge">Z</span> Add Pass Zone (Blue)</li>
+                    <li><span class="key-badge">Del</span> Delete Selected Zone</li>
+                    <li><span class="key-badge">Enter</span> Solve Linkage</li>
+                    <li><span class="key-badge">Space</span> Play / Pause Animation</li>
+                    <li><span class="key-badge">Esc</span> Clear All / Cancel</li>
+                </ul>
+            </div>
+
+            <div class="help-section">
+                <h4>How to Use</h4>
+                <p style="margin-bottom: 10px; line-height: 1.5;">
+                    1. <strong>Draw a Path:</strong> Switch to Draw mode and click-drag on the canvas to define the motion curve you want the linkage to trace.
+                </p>
+                <p style="margin-bottom: 10px; line-height: 1.5;">
+                    2. <strong>Add Zones:</strong> 
+                    <br> - <strong>Start Zones (Green):</strong> Where the linkage's ground pivots must be located.
+                    <br> - <strong>Pass Zones (Blue):</strong> Areas the linkage must pass through or avoid (depending on solver logic).
+                </p>
+                <p style="margin-bottom: 10px; line-height: 1.5;">
+                    3. <strong>Solve:</strong> Click "Solve Linkage" to find the best 4-bar, 5-bar, or 6-bar mechanism.
+                </p>
+            </div>
+        </div>
+    </div>
+
     <script src="geometry.js"></script>
     <script src="solver.js"></script>
     <script src="script.js"></script>

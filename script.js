@@ -7,7 +7,7 @@ const state = {
     path: [],
     zones: [],
     scale: 1,
-    canvasUnitsWidth: 100,
+    canvasUnitsWidth: 20,
     isDrawing: false,
     draggedZone: null,
     solvedLinkage: null,
@@ -43,13 +43,6 @@ function resizeCanvas() {
 }
 
 window.addEventListener('resize', resizeCanvas);
-
-const inputWidth = document.getElementById('canvas-units-width');
-inputWidth.addEventListener('change', (e) => {
-    state.canvasUnitsWidth = parseFloat(e.target.value);
-    state.scale = canvas.width / state.canvasUnitsWidth;
-    draw();
-});
 
 document.getElementById('btn-select').addEventListener('click', () => setMode('select'));
 document.getElementById('btn-draw').addEventListener('click', () => setMode('draw'));
@@ -372,6 +365,31 @@ function draw() {
     ctx.translate(state.view.x, state.view.y);
     ctx.scale(state.view.zoom, state.view.zoom);
 
+    const topLeft = toWorld(0, 0);
+    const bottomRight = toWorld(canvas.width, canvas.height);
+    
+    const startX = Math.floor(topLeft.x / state.scale);
+    const endX = Math.ceil(bottomRight.x / state.scale);
+    const startY = Math.floor(topLeft.y / state.scale);
+    const endY = Math.ceil(bottomRight.y / state.scale);
+
+    ctx.beginPath();
+    ctx.strokeStyle = '#eee';
+    ctx.lineWidth = 1 / state.view.zoom;
+
+    for (let i = startX; i <= endX; i++) {
+        const x = i * state.scale;
+        ctx.moveTo(x, topLeft.y);
+        ctx.lineTo(x, bottomRight.y);
+    }
+
+    for (let i = startY; i <= endY; i++) {
+        const y = i * state.scale;
+        ctx.moveTo(topLeft.x, y);
+        ctx.lineTo(bottomRight.x, y);
+    }
+    ctx.stroke();
+
     state.zones.forEach((z, i) => {
         ctx.fillStyle = z.type === 'start' ? 'rgba(0, 255, 0, 0.2)' : 'rgba(0, 0, 255, 0.2)';
         ctx.strokeStyle = z.type === 'start' ? 'green' : 'blue';
@@ -676,3 +694,63 @@ function draw() {
 
 resizeCanvas();
 updateDeleteButtonState();
+
+const modal = document.getElementById('help-modal');
+const btnHelp = document.getElementById('btn-help');
+const spanClose = document.getElementsByClassName('close-modal')[0];
+
+if (btnHelp && modal && spanClose) {
+    btnHelp.onclick = function() {
+        modal.style.display = "block";
+    }
+
+    spanClose.onclick = function() {
+        modal.style.display = "none";
+    }
+
+    window.onclick = function(event) {
+        if (event.target == modal) {
+            modal.style.display = "none";
+        }
+    }
+}
+
+document.addEventListener('keydown', (e) => {
+    if (e.target.tagName === 'INPUT') return;
+
+    switch(e.key.toLowerCase()) {
+        case 's':
+            setMode('select');
+            break;
+        case 'd':
+            setMode('draw');
+            break;
+        case 'a':
+            setMode('add-start-zone');
+            break;
+        case 'z':
+            setMode('add-pass-zone');
+            break;
+        case 'delete':
+        case 'backspace':
+            document.getElementById('btn-delete-zone').click();
+            break;
+        case 'enter':
+            if (!document.getElementById('btn-solve').disabled) {
+                document.getElementById('btn-solve').click();
+            }
+            break;
+        case ' ':
+            e.preventDefault();
+            if (!document.getElementById('btn-play').disabled) {
+                document.getElementById('btn-play').click();
+            }
+            break;
+        case 'escape':
+            setMode('select');
+            state.selectedZoneIndex = null;
+            updateDeleteButtonState();
+            draw();
+            break;
+    }
+});
