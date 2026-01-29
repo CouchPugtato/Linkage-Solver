@@ -128,14 +128,16 @@ class Solver {
     }
 
     evaluate(linkage, targetPath, passZones, startZones) {
-        const curvePoints = [];
+        const curveSegments = [];
         const step = 5 * (Math.PI / 180);
         const validZones = [...(startZones || []), ...(passZones || [])];
         
-        // Find configuration closest to path start
         let startSol = null;
         let startMinDist = Infinity;
         const pStart = targetPath[0];
+
+        let prevSol = null;
+        let firstSol = null;
 
         for (let theta = 0; theta < 2 * Math.PI; theta += step) {
             const sol = linkage.solve(theta);
@@ -156,7 +158,10 @@ class Solver {
                             break;
                         }
                     }
-                    if (!allIn) return Infinity;
+                    if (!allIn) {
+                        prevSol = null;
+                        continue;
+                    }
                 }
                 
                 const d = sol.P.dist(pStart);
@@ -165,13 +170,26 @@ class Solver {
                     startSol = sol;
                 }
                 
-                curvePoints.push(sol.P);
+                if (prevSol) {
+                    curveSegments.push({ p1: prevSol.P, p2: sol.P });
+                }
+                
+                if (!firstSol) firstSol = sol;
+                prevSol = sol;
+            } else {
+                prevSol = null;
             }
         }
         
-        if (curvePoints.length < 10) return Infinity;
+        if (prevSol && firstSol) {
+             const solEnd = linkage.solve(0);
+             if (solEnd && prevSol) {
+                  curveSegments.push({ p1: prevSol.P, p2: firstSol.P });
+             }
+        }
         
-        // Check if the starting configuration is in start zones
+        if (curveSegments.length < 5) return Infinity;
+        
         if (startZones && startZones.length > 0 && startSol) {
             const startPoints = [startSol.A, startSol.B, startSol.P];
             for (const p of startPoints) {
@@ -190,11 +208,28 @@ class Solver {
         let maxDist = 0;
         
         for (const tp of targetPath) {
-            let minD = Infinity;
-            for (const cp of curvePoints) {
-                const d = tp.dist(cp);
-                if (d < minD) minD = d;
+            let minDistSq = Infinity;
+            
+            for (const seg of curveSegments) {
+                const v = seg.p1;
+                const w = seg.p2;
+                
+                const l2 = (v.x - w.x)**2 + (v.y - w.y)**2;
+                let dSq;
+                if (l2 === 0) {
+                    dSq = (tp.x - v.x)**2 + (tp.y - v.y)**2;
+                } else {
+                    let t = ((tp.x - v.x) * (w.x - v.x) + (tp.y - v.y) * (w.y - v.y)) / l2;
+                    t = Math.max(0, Math.min(1, t));
+                    const px = v.x + t * (w.x - v.x);
+                    const py = v.y + t * (w.y - v.y);
+                    dSq = (tp.x - px)**2 + (tp.y - py)**2;
+                }
+                
+                if (dSq < minDistSq) minDistSq = dSq;
             }
+            
+            const minD = Math.sqrt(minDistSq);
             totalDist += minD;
             if (minD > maxDist) maxDist = minD;
         }
@@ -202,8 +237,8 @@ class Solver {
         let zonePenalty = 0;
         for (const zone of passZones) {
             let passed = false;
-            for (const cp of curvePoints) {
-                if (zone.contains(cp)) {
+            for (const seg of curveSegments) {
+                if (zone.contains(seg.p1) || zone.contains(seg.p2)) {
                     passed = true;
                     break;
                 }
