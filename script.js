@@ -268,6 +268,7 @@ function updateDeleteButtonState() {
 const statusDiv = document.getElementById('status');
 const btnSolve = document.getElementById('btn-solve');
 const linkageBarsInput = document.getElementById('linkage-bars');
+const constrainedStartInput = document.getElementById('chk-constrained-start');
 
 btnSolve.addEventListener('click', async () => {
     if (state.path.length < 2) {
@@ -298,7 +299,10 @@ btnSolve.addEventListener('click', async () => {
     const startZones = state.zones.filter(z => z.type === 'start');
     const passZones = state.zones.filter(z => z.type === 'pass');
     
-    const linkage = await solver.solve(state.path, startZones, passZones, { barCount: requestedBarCount }, (attempt, iter, error) => {
+    const linkage = await solver.solve(state.path, startZones, passZones, {
+        barCount: requestedBarCount,
+        constrainedStart: constrainedStartInput.checked
+    }, (attempt, iter, error) => {
         statusDiv.textContent = `${requestedBarCount ? `${requestedBarCount}-bar` : 'Mixed'} search, Attempt ${attempt}/5, Iteration: ${iter}, Best Error: ${error === Infinity ? '-' : formatNumber(error)}`;
     });
     

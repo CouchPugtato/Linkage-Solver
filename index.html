@@ -50,6 +50,9 @@
                 <h3>Solver</h3>
                 <label for="linkage-bars">Linkage Bars</label>
                 <input type="number" id="linkage-bars" min="4" max="6" step="1" placeholder="leave blank for optimal">
+                <label class="toggle-label constrained-start-toggle">
+                    <input type="checkbox" id="chk-constrained-start"> Constrained Start
+                </label>
                 <button id="btn-solve" title="Start solving (Enter)">
                     Solve Linkage <span class="kbd-shortcut">Enter</span>
                 </button>
@@ -79,7 +82,7 @@
                 <button id="btn-play" disabled title="Play/Pause simulation (Space)">
                     Play <span class="kbd-shortcut">Space</span>
                 </button>
-                <label style="margin-top: 10px; display: flex; align-items: center; gap: 5px; cursor: pointer;">
+                <label class="toggle-label">
                     <input type="checkbox" id="chk-show-lengths" disabled> Show Lengths
                 </label>
             </div>
@@ -123,7 +126,10 @@
                     3. <strong>Set Bars:</strong> Optionally enter `4`, `5`, or `6` to constrain the solver to that mechanism family.
                 </p>
                 <p style="margin-bottom: 10px; line-height: 1.5;">
-                    4. <strong>Solve:</strong> Click "Solve Linkage" to find the best matching mechanism.
+                    4. <strong>Constrained Start:</strong> Leave this enabled if the mechanism must begin inside the green start zone.
+                </p>
+                <p style="margin-bottom: 10px; line-height: 1.5;">
+                    5. <strong>Solve:</strong> Click "Solve Linkage" to find the best matching mechanism.
                 </p>
             </div>
         </div>

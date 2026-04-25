@@ -29,7 +29,7 @@ class Solver {
                 }
 
                 for (const candidate of candidates) {
-                    const error = this.evaluate(candidate, targetPath, passZones, startZones);
+                    const error = this.evaluate(candidate, targetPath, passZones, startZones, options);
                     
                     if (error < this.bestError) {
                         this.bestError = error;
@@ -113,6 +113,21 @@ class Solver {
         const maxT = Math.max(...unwrappedThetas);
         
         return { start: minT, end: maxT };
+    }
+
+    getStartConstraintPoints(linkage, solution) {
+        const points = [linkage.p1, linkage.p2];
+        const type = linkage.type || 'four-bar';
+
+        if (type === 'four-bar') {
+            points.push(solution.A, solution.B, solution.P);
+        } else if (type === 'five-bar') {
+            points.push(solution.A, solution.B, solution.C, solution.P);
+        } else if (type === 'six-bar') {
+            points.push(solution.A, solution.B, solution.C, solution.D, solution.P);
+        }
+
+        return points.filter(Boolean);
     }
 
     generateFourBar(startZones) {
@@ -220,7 +235,7 @@ class Solver {
         return this.generateFourBar(startZones);
     }
 
-    evaluate(linkage, targetPath, passZones, startZones) {
+    evaluate(linkage, targetPath, passZones, startZones, options = {}) {
         const curveSegments = [];
         const step = 5 * (Math.PI / 180);
         const validZones = [...(startZones || []), ...(passZones || [])];
@@ -283,8 +298,8 @@ class Solver {
         
         if (curveSegments.length < 5) return Infinity;
         
-        if (startZones && startZones.length > 0 && startSol) {
-            const startPoints = [startSol.A, startSol.B, startSol.P];
+        if (options.constrainedStart && startZones && startZones.length > 0 && startSol) {
+            const startPoints = this.getStartConstraintPoints(linkage, startSol);
             for (const p of startPoints) {
                 let inStartZone = false;
                 for (const z of startZones) {
