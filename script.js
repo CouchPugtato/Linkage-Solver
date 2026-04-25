@@ -246,15 +246,27 @@ function updateDeleteButtonState() {
 
 const statusDiv = document.getElementById('status');
 const btnSolve = document.getElementById('btn-solve');
+const linkageBarsInput = document.getElementById('linkage-bars');
 
 btnSolve.addEventListener('click', async () => {
     if (state.path.length < 2) {
         alert("Please draw a path first.");
         return;
     }
+
+    const linkageBarsValue = linkageBarsInput.value.trim();
+    let requestedBarCount = null;
+    if (linkageBarsValue !== '') {
+        requestedBarCount = parseInt(linkageBarsValue, 10);
+        if (![4, 5, 6].includes(requestedBarCount)) {
+            alert("Linkage bars must be 4, 5, or 6.");
+            linkageBarsInput.focus();
+            return;
+        }
+    }
     
     btnSolve.disabled = true;
-    statusDiv.textContent = "Solving... (This may take a moment)";
+    statusDiv.textContent = `Solving${requestedBarCount ? ` ${requestedBarCount}-bar` : ''} linkage... (This may take a moment)`;
     
     document.getElementById('linkage-type').textContent = '-';
     document.getElementById('theta-start').textContent = '-';
@@ -265,13 +277,15 @@ btnSolve.addEventListener('click', async () => {
     const startZones = state.zones.filter(z => z.type === 'start');
     const passZones = state.zones.filter(z => z.type === 'pass');
     
-    const linkage = await solver.solve(state.path, startZones, passZones, (attempt, iter, error) => {
-        statusDiv.textContent = `Attempt ${attempt}/5, Iteration: ${iter}, Best Error: ${error === Infinity ? '-' : error.toFixed(2)}`;
+    const linkage = await solver.solve(state.path, startZones, passZones, { barCount: requestedBarCount }, (attempt, iter, error) => {
+        statusDiv.textContent = `${requestedBarCount ? `${requestedBarCount}-bar` : 'Mixed'} search, Attempt ${attempt}/5, Iteration: ${iter}, Best Error: ${error === Infinity ? '-' : error.toFixed(2)}`;
     });
     
     state.solvedLinkage = linkage;
     btnSolve.disabled = false;
-    statusDiv.textContent = linkage ? "Solution found!" : "No solution found.";
+    statusDiv.textContent = linkage
+        ? `Solution found${requestedBarCount ? ` (${requestedBarCount}-bar)` : ''}!`
+        : `No ${requestedBarCount ? `${requestedBarCount}-bar ` : ''}solution found.`;
     
     if (linkage) {
         document.getElementById('linkage-type').textContent = linkage.type || 'four-bar';

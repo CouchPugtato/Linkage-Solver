@@ -6,11 +6,10 @@ class Solver {
         this.attempts = 5;
     }
 
-    async solve(targetPath, startZones, passZones, callback) {
+    async solve(targetPath, startZones, passZones, options = {}, callback) {
         let globalBestLinkage = null;
         let globalBestError = Infinity;
-
-        const startTime = Date.now();
+        const candidateFactories = this.getCandidateFactories(options.barCount);
 
         for (let a = 1; a <= this.attempts; a++) {
             this.bestError = Infinity;
@@ -23,9 +22,11 @@ class Solver {
                 }
 
                 const candidates = [];
-                for (let k = 0; k < 5; k++) candidates.push(this.generateFourBar(startZones));
-                for (let k = 0; k < 5; k++) candidates.push(this.generateFiveBar(startZones));
-                for (let k = 0; k < 5; k++) candidates.push(this.generateSixBar(startZones));
+                for (const factory of candidateFactories) {
+                    for (let k = 0; k < 5; k++) {
+                        candidates.push(factory.call(this, startZones));
+                    }
+                }
 
                 for (const candidate of candidates) {
                     const error = this.evaluate(candidate, targetPath, passZones, startZones);
@@ -52,6 +53,24 @@ class Solver {
         }
 
         return this.bestLinkage;
+    }
+
+    getCandidateFactories(barCount) {
+        const factories = {
+            4: [this.generateFourBar],
+            5: [this.generateFiveBar],
+            6: [this.generateSixBar]
+        };
+
+        if (barCount && factories[barCount]) {
+            return factories[barCount];
+        }
+
+        return [
+            this.generateFourBar,
+            this.generateFiveBar,
+            this.generateSixBar
+        ];
     }
 
     findPathRange(linkage, targetPath) {
