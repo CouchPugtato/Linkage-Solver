@@ -18,8 +18,13 @@ const state = {
     showLengths: false,
     view: { x: 0, y: 0, zoom: 1 },
     isPanning: false,
-    lastMousePos: null
+    lastMousePos: null,
+    resizingZone: null,
+    hoverHandle: null
 };
+
+const HANDLE_SIZE_SCREEN = 10;
+const MIN_ZONE_SIZE_SCREEN = 12;
 
 function toWorld(screenX, screenY) {
     return {
@@ -33,6 +38,132 @@ function toScreen(worldX, worldY) {
         x: worldX * state.view.zoom + state.view.x,
         y: worldY * state.view.zoom + state.view.y
     };
+}
+
+function getHandleSizeWorld() {
+    return HANDLE_SIZE_SCREEN / state.view.zoom;
+}
+
+function getMinZoneSizeWorld() {
+    return MIN_ZONE_SIZE_SCREEN / state.view.zoom;
+}
+
+function getZoneBounds(zone) {
+    return {
+        left: zone.x,
+        right: zone.x + zone.w,
+        top: zone.y,
+        bottom: zone.y + zone.h
+    };
+}
+
+function getZoneHandlePositions(zone) {
+    const { left, right, top, bottom } = getZoneBounds(zone);
+    const cx = (left + right) / 2;
+    const cy = (top + bottom) / 2;
+
+    return {
+        nw: { x: left, y: top },
+        n: { x: cx, y: top },
+        ne: { x: right, y: top },
+        e: { x: right, y: cy },
+        se: { x: right, y: bottom },
+        s: { x: cx, y: bottom },
+        sw: { x: left, y: bottom },
+        w: { x: left, y: cy }
+    };
+}
+
+function getResizeHandleAtPoint(zone, worldPos) {
+    const handleHalfSize = getHandleSizeWorld() / 2;
+    const handles = getZoneHandlePositions(zone);
+
+    for (const [name, handle] of Object.entries(handles)) {
+        if (
+            Math.abs(worldPos.x - handle.x) <= handleHalfSize &&
+            Math.abs(worldPos.y - handle.y) <= handleHalfSize
+        ) {
+            return name;
+        }
+    }
+
+    return null;
+}
+
+function getCursorForHandle(handle) {
+    const cursors = {
+        nw: 'nwse-resize',
+        se: 'nwse-resize',
+        ne: 'nesw-resize',
+        sw: 'nesw-resize',
+        n: 'ns-resize',
+        s: 'ns-resize',
+        e: 'ew-resize',
+        w: 'ew-resize'
+    };
+
+    return cursors[handle] || 'default';
+}
+
+function updateCanvasCursor(worldPos) {
+    if (state.mode !== 'select') {
+        canvas.style.cursor = 'crosshair';
+        return;
+    }
+
+    if (state.resizingZone) {
+        canvas.style.cursor = getCursorForHandle(state.resizingZone.handle);
+        return;
+    }
+
+    if (state.draggedZone) {
+        canvas.style.cursor = 'move';
+        return;
+    }
+
+    const selectedZone = state.selectedZoneIndex !== null ? state.zones[state.selectedZoneIndex] : null;
+    if (selectedZone) {
+        const handle = getResizeHandleAtPoint(selectedZone, worldPos);
+        state.hoverHandle = handle;
+        if (handle) {
+            canvas.style.cursor = getCursorForHandle(handle);
+            return;
+        }
+    } else {
+        state.hoverHandle = null;
+    }
+
+    for (let i = state.zones.length - 1; i >= 0; i--) {
+        if (state.zones[i].contains(new Point(worldPos.x, worldPos.y))) {
+            canvas.style.cursor = 'move';
+            return;
+        }
+    }
+
+    canvas.style.cursor = 'default';
+}
+
+function resizeZone(zone, handle, worldPos) {
+    let { left, right, top, bottom } = getZoneBounds(zone);
+    const minSize = getMinZoneSizeWorld();
+
+    if (handle.includes('w')) {
+        left = Math.min(worldPos.x, right - minSize);
+    }
+    if (handle.includes('e')) {
+        right = Math.max(worldPos.x, left + minSize);
+    }
+    if (handle.includes('n')) {
+        top = Math.min(worldPos.y, bottom - minSize);
+    }
+    if (handle.includes('s')) {
+        bottom = Math.max(worldPos.y, top + minSize);
+    }
+
+    zone.x = left;
+    zone.y = top;
+    zone.w = right - left;
+    zone.h = bottom - top;
 }
 
 function resizeCanvas() {
@@ -73,6 +204,9 @@ document.getElementById('btn-clear').addEventListener('click', () => {
     state.zones = [];
     state.solvedLinkage = null;
     state.selectedZoneIndex = null;
+    state.draggedZone = null;
+    state.resizingZone = null;
+    state.hoverHandle = null;
     updateDeleteButtonState();
     
     document.getElementById('linkage-type').textContent = '-';
@@ -92,6 +226,9 @@ document.getElementById('btn-delete-zone').addEventListener('click', () => {
     if (state.selectedZoneIndex !== null) {
         state.zones.splice(state.selectedZoneIndex, 1);
         state.selectedZoneIndex = null;
+        state.draggedZone = null;
+        state.resizingZone = null;
+        state.hoverHandle = null;
         updateDeleteButtonState();
         draw();
     }
@@ -219,8 +356,12 @@ function animate() {
 
 function setMode(mode) {
     state.mode = mode;
+    state.draggedZone = null;
+    state.resizingZone = null;
+    state.hoverHandle = null;
     document.querySelectorAll('#sidebar button').forEach(b => b.classList.remove('active'));
     document.getElementById(`btn-${mode}`).classList.add('active');
+    canvas.style.cursor = mode === 'select' ? 'default' : 'crosshair';
 }
 
 canvas.addEventListener('wheel', (e) => {
@@ -258,6 +399,21 @@ canvas.addEventListener('mousedown', (e) => {
     const p = new Point(worldPos.x, worldPos.y);
     
     if (state.mode === 'select') {
+        const selectedZone = state.selectedZoneIndex !== null ? state.zones[state.selectedZoneIndex] : null;
+        if (selectedZone) {
+            const handle = getResizeHandleAtPoint(selectedZone, worldPos);
+            if (handle) {
+                state.resizingZone = {
+                    index: state.selectedZoneIndex,
+                    handle
+                };
+                state.hoverHandle = handle;
+                canvas.style.cursor = getCursorForHandle(handle);
+                draw();
+                return;
+            }
+        }
+
         let clickedZone = false;
         for (let i = state.zones.length - 1; i >= 0; i--) {
             if (state.zones[i].contains(p)) {
@@ -304,7 +460,11 @@ canvas.addEventListener('mousemove', (e) => {
     const worldPos = toWorld(x, y);
     const p = new Point(worldPos.x, worldPos.y);
     
-    if (state.draggedZone) {
+    if (state.resizingZone) {
+        const zone = state.zones[state.resizingZone.index];
+        resizeZone(zone, state.resizingZone.handle, worldPos);
+        draw();
+    } else if (state.draggedZone) {
         const zone = state.zones[state.draggedZone.index];
         zone.x = worldPos.x - state.draggedZone.offsetX;
         zone.y = worldPos.y - state.draggedZone.offsetY;
@@ -323,6 +483,8 @@ canvas.addEventListener('mousemove', (e) => {
         ctx.strokeStyle = '#00f';
         ctx.strokeRect(dragStart.x, dragStart.y, worldPos.x - dragStart.x, worldPos.y - dragStart.y);
         ctx.restore();
+    } else {
+        updateCanvasCursor(worldPos);
     }
 });
 
@@ -339,8 +501,13 @@ canvas.addEventListener('mouseup', (e) => {
 
     const worldPos = toWorld(x, y);
     
-    if (state.draggedZone) {
+    if (state.resizingZone) {
+        state.resizingZone = null;
+        updateCanvasCursor(worldPos);
+        draw();
+    } else if (state.draggedZone) {
         state.draggedZone = null;
+        updateCanvasCursor(worldPos);
     } else if (state.mode === 'draw') {
         state.isDrawing = false;
     } else if (dragStart) {
@@ -354,6 +521,8 @@ canvas.addEventListener('mouseup', (e) => {
         }
         dragStart = null;
         draw();
+    } else {
+        updateCanvasCursor(worldPos);
     }
 });
 
@@ -403,6 +572,31 @@ function draw() {
 
         ctx.fillRect(z.x, z.y, z.w, z.h);
         ctx.strokeRect(z.x, z.y, z.w, z.h);
+
+        if (i === state.selectedZoneIndex) {
+            const handles = Object.values(getZoneHandlePositions(z));
+            const handleSize = getHandleSizeWorld();
+            const handleHalfSize = handleSize / 2;
+
+            ctx.fillStyle = '#ffffff';
+            ctx.strokeStyle = '#1f2937';
+            ctx.lineWidth = 1 / state.view.zoom;
+
+            handles.forEach((handle) => {
+                ctx.fillRect(
+                    handle.x - handleHalfSize,
+                    handle.y - handleHalfSize,
+                    handleSize,
+                    handleSize
+                );
+                ctx.strokeRect(
+                    handle.x - handleHalfSize,
+                    handle.y - handleHalfSize,
+                    handleSize,
+                    handleSize
+                );
+            });
+        }
         
         ctx.lineWidth = 1 / state.view.zoom;
         ctx.fillStyle = '#000';
