@@ -17,10 +17,12 @@ const state = {
     selectedZoneIndex: null,
     showLengths: false,
     view: { x: 0, y: 0, zoom: 1 },
+    viewTarget: { x: 0, y: 0, zoom: 1 },
     isPanning: false,
     lastMousePos: null,
     resizingZone: null,
-    hoverHandle: null
+    hoverHandle: null,
+    zoomAnimationFrameId: null
 };
 
 const HANDLE_SIZE_SCREEN = 10;
@@ -31,6 +33,13 @@ function toWorld(screenX, screenY) {
     return {
         x: (screenX - state.view.x) / state.view.zoom,
         y: (screenY - state.view.y) / state.view.zoom
+    };
+}
+
+function toWorldWithView(screenX, screenY, view) {
+    return {
+        x: (screenX - view.x) / view.zoom,
+        y: (screenY - view.y) / view.zoom
     };
 }
 
@@ -186,6 +195,36 @@ function resizeCanvas() {
     canvas.height = container.clientHeight;
     state.scale = canvas.width / state.canvasUnitsWidth;
     draw();
+}
+
+function animateViewToTarget() {
+    const easing = 0.2;
+    state.view.x += (state.viewTarget.x - state.view.x) * easing;
+    state.view.y += (state.viewTarget.y - state.view.y) * easing;
+    state.view.zoom += (state.viewTarget.zoom - state.view.zoom) * easing;
+
+    const done =
+        Math.abs(state.view.x - state.viewTarget.x) < 0.1 &&
+        Math.abs(state.view.y - state.viewTarget.y) < 0.1 &&
+        Math.abs(state.view.zoom - state.viewTarget.zoom) < 0.001;
+
+    if (done) {
+        state.view.x = state.viewTarget.x;
+        state.view.y = state.viewTarget.y;
+        state.view.zoom = state.viewTarget.zoom;
+        state.zoomAnimationFrameId = null;
+        draw();
+        return;
+    }
+
+    draw();
+    state.zoomAnimationFrameId = requestAnimationFrame(animateViewToTarget);
+}
+
+function ensureZoomAnimation() {
+    if (state.zoomAnimationFrameId === null) {
+        state.zoomAnimationFrameId = requestAnimationFrame(animateViewToTarget);
+    }
 }
 
 window.addEventListener('resize', resizeCanvas);
@@ -409,16 +448,16 @@ canvas.addEventListener('wheel', (e) => {
     const mouseX = e.clientX - rect.left;
     const mouseY = e.clientY - rect.top;
 
-    const zoomSensitivity = 0.008;
-    const delta = -e.deltaY * zoomSensitivity;
-    const newZoom = Math.max(0.1, Math.min(10, state.view.zoom * (1 + delta)));
+    const zoomSensitivity = 0.0015;
+    const worldPos = toWorldWithView(mouseX, mouseY, state.viewTarget);
+    const zoomFactor = Math.exp(-e.deltaY * zoomSensitivity);
+    const newZoom = Math.max(0.1, Math.min(10, state.viewTarget.zoom * zoomFactor));
 
-    const worldPos = toWorld(mouseX, mouseY);
-    state.view.x = mouseX - worldPos.x * newZoom;
-    state.view.y = mouseY - worldPos.y * newZoom;
-    state.view.zoom = newZoom;
+    state.viewTarget.x = mouseX - worldPos.x * newZoom;
+    state.viewTarget.y = mouseY - worldPos.y * newZoom;
+    state.viewTarget.zoom = newZoom;
 
-    draw();
+    ensureZoomAnimation();
 });
 
 let dragStart = null;
@@ -491,6 +530,9 @@ canvas.addEventListener('mousemove', (e) => {
         const dy = y - state.lastMousePos.y;
         state.view.x += dx;
         state.view.y += dy;
+        state.viewTarget.x = state.view.x;
+        state.viewTarget.y = state.view.y;
+        state.viewTarget.zoom = state.view.zoom;
         state.lastMousePos = { x, y };
         draw();
         return;
