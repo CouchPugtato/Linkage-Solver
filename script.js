@@ -25,6 +25,7 @@ const state = {
 
 const HANDLE_SIZE_SCREEN = 10;
 const MIN_ZONE_SIZE_SCREEN = 12;
+const DISPLAY_PRECISION = 4;
 
 function toWorld(screenX, screenY) {
     return {
@@ -38,6 +39,20 @@ function toScreen(worldX, worldY) {
         x: worldX * state.view.zoom + state.view.x,
         y: worldY * state.view.zoom + state.view.y
     };
+}
+
+function formatNumber(value, digits = DISPLAY_PRECISION) {
+    return Number(value).toFixed(digits);
+}
+
+function formatNumberInput(input, digits = DISPLAY_PRECISION) {
+    const raw = input.value.trim();
+    if (raw === '') return;
+
+    const value = Number(raw);
+    if (!Number.isNaN(value)) {
+        input.value = formatNumber(value, digits);
+    }
 }
 
 function getHandleSizeWorld() {
@@ -180,6 +195,12 @@ document.getElementById('btn-draw').addEventListener('click', () => setMode('dra
 document.getElementById('btn-add-start-zone').addEventListener('click', () => setMode('add-start-zone'));
 document.getElementById('btn-add-pass-zone').addEventListener('click', () => setMode('add-pass-zone'));
 
+['zone-w', 'zone-h'].forEach((id) => {
+    const input = document.getElementById(id);
+    input.addEventListener('change', () => formatNumberInput(input));
+    input.addEventListener('blur', () => formatNumberInput(input));
+});
+
 document.getElementById('btn-add-manual-zone').addEventListener('click', () => {
     const wVal = parseFloat(document.getElementById('zone-w').value);
     const hVal = parseFloat(document.getElementById('zone-h').value);
@@ -278,7 +299,7 @@ btnSolve.addEventListener('click', async () => {
     const passZones = state.zones.filter(z => z.type === 'pass');
     
     const linkage = await solver.solve(state.path, startZones, passZones, { barCount: requestedBarCount }, (attempt, iter, error) => {
-        statusDiv.textContent = `${requestedBarCount ? `${requestedBarCount}-bar` : 'Mixed'} search, Attempt ${attempt}/5, Iteration: ${iter}, Best Error: ${error === Infinity ? '-' : error.toFixed(2)}`;
+        statusDiv.textContent = `${requestedBarCount ? `${requestedBarCount}-bar` : 'Mixed'} search, Attempt ${attempt}/5, Iteration: ${iter}, Best Error: ${error === Infinity ? '-' : formatNumber(error)}`;
     });
     
     state.solvedLinkage = linkage;
@@ -294,12 +315,12 @@ btnSolve.addEventListener('click', async () => {
         document.getElementById('chk-show-lengths').disabled = false;
         
         if (linkage.angleRange) {
-            const toDeg = r => (r * 180 / Math.PI).toFixed(1) + '°';
+            const toDeg = r => `${formatNumber(r * 180 / Math.PI)}°`;
             document.getElementById('theta-start').textContent = toDeg(linkage.angleRange.start);
             document.getElementById('theta-end').textContent = toDeg(linkage.angleRange.end);
         }
         
-        document.getElementById('path-error').textContent = linkage.error.toFixed(2);
+        document.getElementById('path-error').textContent = formatNumber(linkage.error);
         
         draw();
     } else {
@@ -619,8 +640,8 @@ function draw() {
         ctx.translate(z.x, z.y);
         ctx.scale(1/state.view.zoom, 1/state.view.zoom);
         ctx.font = '10px sans-serif';
-        const wUnits = (z.w / state.scale).toFixed(1);
-        const hUnits = (z.h / state.scale).toFixed(1);
+        const wUnits = formatNumber(z.w / state.scale);
+        const hUnits = formatNumber(z.h / state.scale);
         ctx.fillText(`${wUnits} x ${hUnits}`, 5, 15);
         ctx.restore();
     });
@@ -846,7 +867,7 @@ function draw() {
                 const drawLength = (p1, p2, val) => {
                     const midX = (p1.x + p2.x) / 2;
                     const midY = (p1.y + p2.y) / 2;
-                    const len = (val / state.scale).toFixed(1);
+                    const len = formatNumber(val / state.scale);
                     
                     ctx.save();
                     ctx.translate(midX, midY);

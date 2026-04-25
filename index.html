@@ -30,8 +30,8 @@
                 </button>
                 
                 <div class="manual-input">
-                    <input type="number" id="zone-w" placeholder="W" style="width: 45%;">
-                    <input type="number" id="zone-h" placeholder="H" style="width: 45%;">
+                    <input type="number" id="zone-w" step="0.0001" placeholder="W" style="width: 45%;">
+                    <input type="number" id="zone-h" step="0.0001" placeholder="H" style="width: 45%;">
                     <button id="btn-add-manual-zone" style="margin-top: 5px; margin-bottom: 0;">Add</button>
                 </div>
                 
@@ -49,7 +49,7 @@
             <div class="control-group">
                 <h3>Solver</h3>
                 <label for="linkage-bars">Linkage Bars</label>
-                <input type="number" id="linkage-bars" min="4" max="6" step="1" placeholder="Leave Blank for Optimal Solve">
+                <input type="number" id="linkage-bars" min="4" max="6" step="1" placeholder="leave blank for optimal">
                 <button id="btn-solve" title="Start solving (Enter)">
                     Solve Linkage <span class="kbd-shortcut">Enter</span>
                 </button>
