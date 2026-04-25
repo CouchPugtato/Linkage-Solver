@@ -64,6 +64,14 @@ function formatNumberInput(input, digits = DISPLAY_PRECISION) {
     }
 }
 
+function updateCurrentThetaDisplay() {
+    let displayAngle = state.simulationAngle % (2 * Math.PI);
+    if (displayAngle < 0) displayAngle += 2 * Math.PI;
+
+    slider.value = displayAngle * (180 / Math.PI);
+    document.getElementById('theta-current').textContent = `${formatNumber(displayAngle * (180 / Math.PI))}°`;
+}
+
 function getHandleSizeWorld() {
     return HANDLE_SIZE_SCREEN / state.view.zoom;
 }
@@ -263,6 +271,7 @@ document.getElementById('btn-clear').addEventListener('click', () => {
     state.path = [];
     state.zones = [];
     state.solvedLinkage = null;
+    state.simulationAngle = 0;
     state.selectedZoneIndex = null;
     state.draggedZone = null;
     state.resizingZone = null;
@@ -273,6 +282,7 @@ document.getElementById('btn-clear').addEventListener('click', () => {
     document.getElementById('theta-start').textContent = '-';
     document.getElementById('theta-end').textContent = '-';
     document.getElementById('path-error').textContent = '-';
+    updateCurrentThetaDisplay();
     
     draw();
 });
@@ -364,6 +374,7 @@ btnSolve.addEventListener('click', async () => {
         }
         
         document.getElementById('path-error').textContent = formatNumber(linkage.error);
+        updateCurrentThetaDisplay();
         
         draw();
     } else {
@@ -371,12 +382,15 @@ btnSolve.addEventListener('click', async () => {
         document.getElementById('theta-start').textContent = '-';
         document.getElementById('theta-end').textContent = '-';
         document.getElementById('path-error').textContent = '-';
+        state.simulationAngle = 0;
+        updateCurrentThetaDisplay();
     }
 });
 
 const slider = document.getElementById('simulation-slider');
 slider.addEventListener('input', (e) => {
     state.simulationAngle = parseFloat(e.target.value) * (Math.PI / 180);
+    updateCurrentThetaDisplay();
     draw();
 });
 
@@ -399,11 +413,13 @@ function animate() {
     
     const range = state.solvedLinkage && state.solvedLinkage.angleRange;
     if (!range) {
-         let angleDeg = (state.simulationAngle * 180 / Math.PI) + 2;
+         let angleDeg = (state.simulationAngle * 180 / Math.PI) + 0.75;
          if (angleDeg > 360) angleDeg = 0;
          state.simulationAngle = angleDeg * (Math.PI / 180);
     } else {
-        const speed = 2 * (Math.PI / 180);
+        const rangeSpan = Math.max(range.end - range.start, 1 * (Math.PI / 180));
+        const framesPerTraversal = 240;
+        const speed = rangeSpan / framesPerTraversal;
         let nextAngle = state.simulationAngle + speed * state.animationDir;
         
         if (state.simulationAngle < range.start || state.simulationAngle > range.end) {
@@ -422,9 +438,7 @@ function animate() {
         state.simulationAngle = nextAngle;
     }
     
-    let displayAngle = state.simulationAngle % (2 * Math.PI);
-    if (displayAngle < 0) displayAngle += 2 * Math.PI;
-    slider.value = displayAngle * (180 / Math.PI);
+    updateCurrentThetaDisplay();
     
     draw();
     
