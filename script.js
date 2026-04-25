@@ -878,7 +878,7 @@ function draw() {
                     ctx.textAlign = 'center';
                     ctx.textBaseline = 'middle';
 
-                    const text = `${len} units`;
+                    const text = `${len}`;
                     const metrics = ctx.measureText(text);
                     const padding = 2;
                     
